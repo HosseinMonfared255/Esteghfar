@@ -1,0 +1,6 @@
+{
+  "name": "استغفار ۷۰ بندی امیرالمؤمنین",
+  "description": "برنامه قرائت و مطالعه استغفار ۷۰ بندی حضرت امیرالمؤمنین علی علیه السلام همراه با ترجمه فارسی، حالت شب و تنظیمات پیشرفته برای نمایش در موبایل.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
