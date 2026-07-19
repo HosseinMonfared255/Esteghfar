@@ -32,6 +32,8 @@ import {
   ArrowUp
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+// @ts-ignore
+import logoIcon from "./assets/images/mafatih_logo_1784452846336.jpg";
 import { prayerBands, introText, concludingText, PrayerBand } from "./data/prayers";
 
 // --- Highly Optimized Monotonic Alignment Engine ---
@@ -61,7 +63,7 @@ function getSimilarityScore(arClause: string, faClause: string): number {
         score += 5; // Strong match for exact cognates
       } else if (arW.length >= 3 && faW.length >= 3) {
         if (arW.includes(faW) || faW.includes(arW)) {
-          score += 3;
+          score += 2;
         }
       }
     }
@@ -71,28 +73,28 @@ function getSimilarityScore(arClause: string, faClause: string): number {
   const faRaw = faClause;
   
   if (arRaw.includes("اللَّهُمَّ") || arRaw.includes("الهم")) {
-    if (faRaw.includes("الها") || faRaw.includes("خدایا") || faRaw.includes("خدا")) score += 4;
+    if (faRaw.includes("الها") || faRaw.includes("خدایا") || faRaw.includes("خدا")) score += 6;
   }
   if (arRaw.includes("رب") || arRaw.includes("الرب")) {
-    if (faRaw.includes("پروردگار")) score += 4;
+    if (faRaw.includes("پروردگار")) score += 6;
   }
   if (arRaw.includes("عبد") || arRaw.includes("العبد")) {
-    if (faRaw.includes("بنده")) score += 4;
+    if (faRaw.includes("بنده")) score += 6;
   }
   if (arRaw.includes("ذنب") || arRaw.includes("الذنب") || arRaw.includes("ذنوب")) {
-    if (faRaw.includes("گناه")) score += 4;
+    if (faRaw.includes("گناه")) score += 6;
   }
   if (arRaw.includes("عثرت") || arRaw.includes("عثرة")) {
-    if (faRaw.includes("لغزش")) score += 4;
+    if (faRaw.includes("لغزش")) score += 6;
   }
   if (arRaw.includes("عفو") || arRaw.includes("العفو")) {
-    if (faRaw.includes("گذشت") || faRaw.includes("عفو")) score += 4;
+    if (faRaw.includes("گذشت") || faRaw.includes("عفو")) score += 6;
   }
   if (arRaw.includes("تقوى") || arRaw.includes("تقوی")) {
-    if (faRaw.includes("تقوا")) score += 4;
+    if (faRaw.includes("تقوا")) score += 6;
   }
   if (arRaw.includes("اجابت")) {
-    if (faRaw.includes("اجابت")) score += 4;
+    if (faRaw.includes("اجابت")) score += 6;
   }
   
   return score;
@@ -110,7 +112,19 @@ function splitWithPunctuation(text: string): { text: string; punc: string }[] {
   if (parts.length === 0 && text.trim().length > 0) {
     parts.push({ text: text.trim(), punc: "" });
   }
-  return parts;
+
+  // Pre-merge extremely short splits (like "بار خدایا!", "بار الها،" etc.) with the next part
+  const merged: { text: string; punc: string }[] = [];
+  for (let i = 0; i < parts.length; i++) {
+    const current = parts[i];
+    const wordCount = current.text.trim().split(/\s+/).length;
+    if ((current.text.length < 15 || wordCount <= 2) && i < parts.length - 1) {
+      parts[i + 1].text = current.text + current.punc + " " + parts[i + 1].text;
+    } else {
+      merged.push(current);
+    }
+  }
+  return merged;
 }
 
 function alignSentences(arabicText: string, persianText: string): { ar: string; fa: string }[] {
@@ -124,19 +138,21 @@ function alignSentences(arabicText: string, persianText: string): { ar: string; 
   const N = arParts.length;
   const M = faParts.length;
   
-  const dp: number[][] = Array.from({ length: N + 1 }, () => Array(M + 1).fill(-Infinity));
+  const totalArLen = arParts.reduce((acc, p) => acc + p.text.length, 0);
+  const totalFaLen = faParts.reduce((acc, p) => acc + p.text.length, 0);
+  const globalRatio = totalArLen / (totalFaLen || 1);
+
+  const dp: number[][] = Array.from({ length: N + 1 }, () => Array(M + 1).fill(Infinity));
   const parent: [number, number][][] = Array.from({ length: N + 1 }, () => Array(M + 1).fill([-1, -1]));
   
   dp[0][0] = 0;
   
   for (let i = 0; i <= N; i++) {
     for (let j = 0; j <= M; j++) {
-      if (dp[i][j] === -Infinity) continue;
+      if (dp[i][j] === Infinity) continue;
       
-      // Try to form a block by taking some Arabic clauses and some Persian clauses
-      // We can take up to 3 clauses from each to prevent too large blocks
-      for (let di = 1; di <= 3; di++) {
-        for (let dj = 1; dj <= 3; dj++) {
+      for (let di = 1; di <= 4; di++) {
+        for (let dj = 1; dj <= 4; dj++) {
           if (i + di <= N && j + dj <= M) {
             const arSub = arParts.slice(i, i + di);
             const faSub = faParts.slice(j, j + dj);
@@ -145,53 +161,44 @@ function alignSentences(arabicText: string, persianText: string): { ar: string; 
             const faBlock = faSub.map(p => p.text + p.punc).join(" ");
             
             const sim = getSimilarityScore(arBlock, faBlock);
+            const simBonus = sim * 15;
             
-            // Length compatibility score
-            const arLen = arBlock.length;
-            const faLen = faBlock.length;
-            const lenRatio = Math.min(arLen, faLen) / Math.max(arLen, faLen);
-            const lenScore = lenRatio * 6; // weight for length balance
+            const arLen = arSub.reduce((acc, p) => acc + p.text.length, 0);
+            const faLen = faSub.reduce((acc, p) => acc + p.text.length, 0);
             
-            // Block size penalty to prefer smaller blocks when they have good similarity
-            const sizePenalty = (di > 1 ? -1 : 0) + (dj > 1 ? -1 : 0);
+            let lenCost = 0;
+            if (arLen > 0 && faLen > 0) {
+              const expectedArLen = faLen * globalRatio;
+              lenCost = Math.abs(arLen - expectedArLen) * 1.5;
+            } else {
+              lenCost = 100;
+            }
             
-            const transitionScore = sim + lenScore + sizePenalty;
-            const nextScore = dp[i][j] + transitionScore;
+            const arProg = (i + di / 2) / N;
+            const faProg = (j + dj / 2) / M;
+            const progressPenalty = Math.abs(arProg - faProg) * 350;
             
-            if (nextScore > dp[i + di][j + dj]) {
-              dp[i + di][j + dj] = nextScore;
+            const mergePenalty = (di - 1) * 20 + (dj - 1) * 20;
+            
+            const transitionCost = lenCost + progressPenalty + mergePenalty - simBonus;
+            const nextCost = dp[i][j] + transitionCost;
+            
+            if (nextCost < dp[i + di][j + dj]) {
+              dp[i + di][j + dj] = nextCost;
               parent[i + di][j + dj] = [i, j];
             }
           }
         }
       }
-      
-      // Also allow 1-to-0 or 0-to-1 matching if we're desperate, but with a heavy penalty
-      if (i + 1 <= N) {
-        const nextScore = dp[i][j] - 15; // heavy penalty for unpaired Arabic clause
-        if (nextScore > dp[i + 1][j]) {
-          dp[i + 1][j] = nextScore;
-          parent[i + 1][j] = [i, j];
-        }
-      }
-      if (j + 1 <= M) {
-        const nextScore = dp[i][j] - 15; // heavy penalty for unpaired Persian clause
-        if (nextScore > dp[i][j + 1]) {
-          dp[i][j + 1] = nextScore;
-          parent[i][j + 1] = [i, j];
-        }
-      }
     }
   }
   
-  // Reconstruct path
   const path: [number, number][] = [];
   let curr: [number, number] = [N, M];
-  while (curr[0] !== 0 || curr[1] !== 0) {
+  while (curr[0] !== -1 && curr[1] !== -1) {
     path.push(curr);
     curr = parent[curr[0]][curr[1]];
   }
-  path.push([0, 0]);
   path.reverse();
   
   const pairs: { ar: string; fa: string }[] = [];
@@ -205,13 +212,17 @@ function alignSentences(arabicText: string, persianText: string): { ar: string; 
     const arStr = arSub.map(p => p.text + p.punc).join(" ");
     const faStr = faSub.map(p => p.text + p.punc).join(" ");
     
-    // Only push non-empty or group them
-    if (arStr || faStr) {
-      pairs.push({ ar: arStr || "", fa: faStr || "" });
-    }
+    pairs.push({ ar: arStr, fa: faStr });
   }
   
   return pairs;
+}
+
+function getFontFamily(fontName: string): string {
+  if (fontName === "Scheherazade") return "'Scheherazade New', 'Amiri', serif";
+  if (fontName === "Vazirmatn") return "Vazirmatn, sans-serif";
+  if (fontName === "sans-serif") return "sans-serif";
+  return "Amiri, serif";
 }
 
 export default function App() {
@@ -273,6 +284,17 @@ export default function App() {
   const [currentFocusIndex, setCurrentFocusIndex] = useState<number>(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState<boolean>(false);
+  const focusContainerRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to the start of the focus card when the active band changes
+  useEffect(() => {
+    if (viewMode === "focus" && focusContainerRef.current) {
+      const timer = setTimeout(() => {
+        focusContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [currentFocusIndex, viewMode]);
 
   // Tasbih counter for selected band
   const [tasbihCounts, setTasbihCounter] = useState<Record<number, number>>(() => {
@@ -492,8 +514,13 @@ export default function App() {
       >
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="bg-orange-500 text-white p-2 rounded-xl shadow-md shadow-orange-500/10">
-              <BookOpen className="w-5 h-5" />
+            <div className="overflow-hidden w-11 h-11 rounded-xl flex items-center justify-center bg-transparent">
+              <img
+                src={logoIcon}
+                alt="لوگوی مفاتیح الجنان"
+                className="w-full h-full object-cover scale-[1.35]"
+                referrerPolicy="no-referrer"
+              />
             </div>
             <div>
               <h1 className="font-bold text-base md:text-lg tracking-tight">استغفار ۷۰ بندی</h1>
@@ -665,7 +692,7 @@ export default function App() {
                   />
                   <p
                     className="text-center font-arabic border py-1.5 px-2 rounded-lg truncate mt-1 bg-orange-500/5 dark:bg-zinc-800/40"
-                    style={{ fontSize: `${arabicFontSize}px`, fontFamily: selectedFont === "Amiri" ? "Amiri" : "Vazirmatn" }}
+                    style={{ fontSize: `${arabicFontSize}px`, fontFamily: getFontFamily(selectedFont) }}
                   >
                     بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ
                   </p>
@@ -701,7 +728,7 @@ export default function App() {
                 <div className="space-y-2">
                   <span className="text-xs font-medium text-slate-400">قلم متن عربی</span>
                   <div className="flex gap-2">
-                    {["Amiri", "Vazirmatn", "sans-serif"].map((font) => (
+                    {["Scheherazade", "Amiri", "Vazirmatn", "sans-serif"].map((font) => (
                       <button
                         key={font}
                         onClick={() => setSelectedFont(font)}
@@ -713,7 +740,7 @@ export default function App() {
                             : "bg-orange-50 border-[#e5e5e5] text-orange-800 hover:bg-orange-100"
                         }`}
                       >
-                        {font === "Amiri" ? "قلم امیری (نسخ)" : font === "Vazirmatn" ? "وزیرمتن" : "سیستم"}
+                        {font === "Scheherazade" ? "قلم شهرزاد" : font === "Amiri" ? "قلم امیری (نسخ)" : font === "Vazirmatn" ? "وزیرمتن" : "سیستم"}
                       </button>
                     ))}
                   </div>
@@ -1051,7 +1078,7 @@ export default function App() {
                               className="leading-relaxed font-arabic font-normal tracking-wide text-justify select-all"
                               style={{
                                 fontSize: `${arabicFontSize}px`,
-                                fontFamily: selectedFont === "sans-serif" ? "sans-serif" : selectedFont === "Vazirmatn" ? "Vazirmatn" : "Amiri",
+                                fontFamily: getFontFamily(selectedFont),
                                 lineHeight: "1.8"
                               }}
                             >
@@ -1079,7 +1106,7 @@ export default function App() {
                             className={`leading-relaxed font-arabic font-normal tracking-wide text-justify select-all whitespace-pre-line`}
                             style={{
                               fontSize: `${arabicFontSize}px`,
-                              fontFamily: selectedFont === "sans-serif" ? "sans-serif" : selectedFont === "Vazirmatn" ? "Vazirmatn" : "Amiri",
+                              fontFamily: getFontFamily(selectedFont),
                               lineHeight: "1.8"
                             }}
                           >
@@ -1155,7 +1182,7 @@ export default function App() {
           </div>
         ) : (
           // --- VIEW MODE: FOCUS SLIDER (ONE BAND AT A TIME) ---
-          <div className="space-y-4">
+          <div ref={focusContainerRef} className="space-y-4">
             <div className="flex items-center justify-between text-xs px-2">
               <span className="text-slate-400">
                 بند <span className="font-bold text-orange-500">{currentFocusIndex + 1}</span> از{" "}
@@ -1258,7 +1285,7 @@ export default function App() {
                               className="leading-relaxed font-arabic font-normal tracking-wide text-justify select-all"
                               style={{
                                 fontSize: `${arabicFontSize + 2}px`,
-                                fontFamily: selectedFont === "sans-serif" ? "sans-serif" : selectedFont === "Vazirmatn" ? "Vazirmatn" : "Amiri",
+                                fontFamily: getFontFamily(selectedFont),
                                 lineHeight: "1.9"
                               }}
                             >
@@ -1286,7 +1313,7 @@ export default function App() {
                             className="leading-relaxed font-arabic font-normal tracking-wide text-justify select-all whitespace-pre-line"
                             style={{
                               fontSize: `${arabicFontSize + 2}px`,
-                              fontFamily: selectedFont === "sans-serif" ? "sans-serif" : selectedFont === "Vazirmatn" ? "Vazirmatn" : "Amiri",
+                              fontFamily: getFontFamily(selectedFont),
                               lineHeight: "1.9"
                             }}
                           >
@@ -1411,7 +1438,7 @@ export default function App() {
               className="text-center font-arabic leading-relaxed tracking-wide select-all whitespace-pre-line"
               style={{
                 fontSize: `${arabicFontSize + 1}px`,
-                fontFamily: selectedFont === "sans-serif" ? "sans-serif" : selectedFont === "Vazirmatn" ? "Vazirmatn" : "Amiri",
+                fontFamily: getFontFamily(selectedFont),
                 lineHeight: "1.8"
               }}
             >

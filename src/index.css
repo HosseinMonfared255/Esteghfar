@@ -1,5 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Vazirmatn:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Vazirmatn:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Scheherazade+New:wght@400;700&display=swap');
 @import "tailwindcss";
+
+@font-face {
+  font-family: 'B Takrim';
+  src: local('B Takrim'), local('B-Takrim'), local('BTakrim'), local('B_Takrim');
+}
 
 @theme {
   --font-sans: "Vazirmatn", "Inter", system-ui, sans-serif;
