@@ -236,10 +236,108 @@ function getFontFamily(fontName: string): string {
 
 export default function App() {
   // --- Persisted States via LocalStorage ---
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem("istighfar_darkMode");
-    return saved ? JSON.parse(saved) : false;
+  const [theme, setTheme] = useState<"cream" | "dark" | "green">(() => {
+    const saved = localStorage.getItem("istighfar_theme");
+    if (saved) return saved as "cream" | "dark" | "green";
+    const oldDark = localStorage.getItem("istighfar_darkMode");
+    if (oldDark) {
+      return JSON.parse(oldDark) ? "dark" : "green";
+    }
+    return "green";
   });
+
+  const darkMode = theme === "dark";
+
+  // --- Theme Helper Class Getters ---
+  const getPageBg = () => {
+    if (theme === "dark") return "bg-[#1a1a1a] text-slate-100";
+    if (theme === "green") return "bg-[#ebf3eb] text-[#1b331b]";
+    return "bg-[#fdf6e3] text-[#2d2d2d]";
+  };
+
+  const getHeaderBg = () => {
+    if (theme === "dark") return "bg-[#1a1a1a]/90 border-zinc-800";
+    if (theme === "green") return "bg-[#ebf3eb]/95 border-[#cce0cc]";
+    return "bg-[#fdf6e3]/95 border-[#e5e5e5]";
+  };
+
+  const getCardBg = (isRead?: boolean) => {
+    if (theme === "dark") {
+      return isRead 
+        ? "bg-zinc-900/85 border-zinc-800 shadow-sm text-slate-300" 
+        : "bg-zinc-900 border-zinc-800 text-slate-100 shadow-sm hover:border-zinc-700";
+    }
+    if (theme === "green") {
+      return isRead 
+        ? "bg-[#fafdfa]/60 border-emerald-100/50 shadow-sm text-emerald-950/70" 
+        : "bg-[#fafdfa] border-[#cfe2cf] text-emerald-950 shadow-sm hover:border-emerald-300";
+    }
+    return isRead 
+      ? "bg-orange-50/20 border-orange-100/50 shadow-sm text-slate-800/70" 
+      : "bg-white border-[#eeeeee] text-[#2d2d2d] shadow-sm hover:border-orange-200";
+  };
+
+  const getSubCardBg = () => {
+    if (theme === "dark") return "bg-zinc-900/50 border-zinc-800";
+    if (theme === "green") return "bg-[#f2faf2] border-[#d4ead4]";
+    return "bg-white border-[#eeeeee]";
+  };
+
+  const getAccentText = () => {
+    if (theme === "dark") return "text-amber-400";
+    if (theme === "green") return "text-emerald-700";
+    return "text-orange-500";
+  };
+
+  const getSubTitleText = () => {
+    if (theme === "dark") return "text-slate-400";
+    if (theme === "green") return "text-emerald-800/80";
+    return "text-orange-800/80";
+  };
+
+  const getPrimaryAccentBg = () => {
+    if (theme === "dark") return "bg-orange-500 hover:bg-orange-600";
+    if (theme === "green") return "bg-emerald-600 hover:bg-emerald-700";
+    return "bg-orange-500 hover:bg-orange-600";
+  };
+
+  const getButtonClass = (isActive: boolean) => {
+    if (isActive) {
+      if (theme === "dark") return "bg-orange-500 text-white border-orange-400";
+      if (theme === "green") return "bg-emerald-600 text-white border-emerald-500";
+      return "bg-orange-500 text-white border-orange-400";
+    } else {
+      if (theme === "dark") return "bg-zinc-800 border-zinc-700 text-slate-300 hover:bg-zinc-700";
+      if (theme === "green") return "bg-[#e2efe2]/80 border-[#cfe2cf] text-emerald-800 hover:bg-[#d6ebd6]";
+      return "bg-orange-50 border-[#e5e5e5] text-orange-700 hover:bg-orange-100/50";
+    }
+  };
+
+  const getPillClass = (isActive: boolean) => {
+    if (isActive) {
+      if (theme === "dark") return "bg-orange-500 text-white border-orange-400 shadow-sm";
+      if (theme === "green") return "bg-emerald-600 text-white border-emerald-500 shadow-sm";
+      return "bg-orange-500 text-white border-orange-400 shadow-sm";
+    } else {
+      if (theme === "dark") return "bg-zinc-800/80 border-zinc-700/50 text-slate-300 hover:bg-zinc-700";
+      if (theme === "green") return "bg-[#fcfdfc] border-[#cfe2cf] text-emerald-800 hover:bg-emerald-50";
+      return "bg-white border-[#e5e5e5] text-slate-600 hover:bg-orange-50";
+    }
+  };
+
+  const getInteractiveSegmentClass = (isSelected: boolean, isHovered: boolean = false) => {
+    if (isSelected) {
+      if (theme === "dark") return "bg-orange-500/10 border-orange-500/30";
+      if (theme === "green") return "bg-emerald-600/10 border-emerald-600/30";
+      return "bg-orange-500/10 border-orange-500/30";
+    }
+    if (isHovered) {
+      if (theme === "dark") return "bg-zinc-800/40 border-zinc-700/30";
+      if (theme === "green") return "bg-emerald-600/5 border-emerald-600/15";
+      return "bg-orange-500/5 border-orange-500/10";
+    }
+    return "bg-transparent border-transparent";
+  };
 
   const [arabicFontSize, setArabicFontSize] = useState<number>(() => {
     const saved = localStorage.getItem("istighfar_arabicFontSize");
@@ -318,13 +416,14 @@ export default function App() {
 
   // Save states to localStorage when they change
   useEffect(() => {
-    localStorage.setItem("istighfar_darkMode", JSON.stringify(darkMode));
-    if (darkMode) {
+    localStorage.setItem("istighfar_theme", theme);
+    localStorage.setItem("istighfar_darkMode", JSON.stringify(theme === "dark"));
+    if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
-  }, [darkMode]);
+  }, [theme]);
 
   useEffect(() => {
     localStorage.setItem("istighfar_arabicFontSize", arabicFontSize.toString());
@@ -460,9 +559,10 @@ export default function App() {
       if (element) {
         element.scrollIntoView({ behavior: "smooth", block: "center" });
         // Highlight briefly
-        element.classList.add("ring-4", "ring-orange-500/50");
+        const ringColor = theme === "green" ? "ring-emerald-500/50" : "ring-orange-500/50";
+        element.classList.add("ring-4", ringColor);
         setTimeout(() => {
-          element.classList.remove("ring-4", "ring-orange-500/50");
+          element.classList.remove("ring-4", ringColor);
         }, 1500);
       }
     }
@@ -499,9 +599,7 @@ export default function App() {
   return (
     <div
       onClick={() => setClickedSegment(null)}
-      className={`transition-colors duration-300 min-h-screen pb-16 font-sans ${
-        darkMode ? "bg-[#1a1a1a] text-slate-100" : "bg-[#fdf6e3] text-[#2d2d2d]"
-      }`}
+      className={`transition-colors duration-300 min-h-screen pb-16 font-sans ${getPageBg()}`}
       dir="rtl"
     >
       {/* Toast Notification */}
@@ -511,7 +609,9 @@ export default function App() {
             initial={{ opacity: 0, y: -50, scale: 0.9 }}
             animate={{ opacity: 1, y: 16, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.9 }}
-            className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-2xl text-sm font-medium bg-orange-600 text-white flex items-center gap-2 border border-orange-500/20"
+            className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-2xl text-sm font-medium text-white flex items-center gap-2 border ${
+              theme === "green" ? "bg-emerald-700 border-emerald-600/20" : "bg-orange-600 border-orange-500/20"
+            }`}
           >
             <Sparkles className="w-4 h-4 animate-pulse" />
             <span>{toastMessage}</span>
@@ -521,11 +621,7 @@ export default function App() {
 
       {/* Header */}
       <header
-        className={`sticky top-0 z-40 backdrop-blur-md border-b transition-colors duration-300 ${
-          darkMode
-            ? "bg-[#1a1a1a]/90 border-zinc-800"
-            : "bg-[#fdf6e3]/95 border-[#e5e5e5]"
-        }`}
+        className={`sticky top-0 z-40 backdrop-blur-md border-b transition-colors duration-300 ${getHeaderBg()}`}
       >
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -539,7 +635,7 @@ export default function App() {
             </div>
             <div>
               <h1 className="font-bold text-base md:text-lg tracking-tight">استغفار ۷۰ بندی</h1>
-              <p className={`text-[10px] md:text-xs ${darkMode ? "text-slate-400" : "text-orange-800/80"}`}>
+              <p className={`text-[10px] md:text-xs ${theme === "dark" ? "text-slate-400" : theme === "green" ? "text-emerald-850" : "text-orange-800/80"}`}>
                 امیرالمؤمنین حضرت علی علیه السلام
               </p>
             </div>
@@ -551,14 +647,24 @@ export default function App() {
               onClick={() => setShowThemeModal(true)}
               className={`p-2.5 rounded-xl border transition-all hover:scale-105 ${
                 showThemeModal
-                  ? "bg-orange-500 text-white border-orange-400"
-                  : darkMode
+                  ? theme === "green"
+                    ? "bg-emerald-600 text-white border-emerald-500"
+                    : "bg-orange-500 text-white border-orange-400"
+                  : theme === "dark"
                   ? "bg-zinc-800 border-zinc-700 text-amber-400"
+                  : theme === "green"
+                  ? "bg-[#e2efe2] border-[#cfe2cf] text-emerald-800"
                   : "bg-orange-50 border-[#e5e5e5] text-orange-700"
               }`}
               title="پوسته و حالت نمایش"
             >
-              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {theme === "dark" ? (
+                <Moon className="w-4 h-4" />
+              ) : theme === "green" ? (
+                <BookOpen className="w-4 h-4" />
+              ) : (
+                <Sun className="w-4 h-4" />
+              )}
             </button>
 
             {/* Jump Grid button */}
@@ -566,9 +672,13 @@ export default function App() {
               onClick={() => setShowIntroJumpGrid(true)}
               className={`p-2.5 rounded-xl border transition-all hover:scale-105 ${
                 showJumpGrid
-                  ? "bg-orange-500 text-white border-orange-400"
-                  : darkMode
+                  ? theme === "green"
+                    ? "bg-emerald-600 text-white border-emerald-500"
+                    : "bg-orange-500 text-white border-orange-400"
+                  : theme === "dark"
                   ? "bg-zinc-800 border-zinc-700 text-slate-300"
+                  : theme === "green"
+                  ? "bg-[#e2efe2] border-[#cfe2cf] text-emerald-800"
                   : "bg-orange-50 border-[#e5e5e5] text-orange-700"
               }`}
               title="پرش به بند"
@@ -581,9 +691,13 @@ export default function App() {
               onClick={() => setShowSettings(true)}
               className={`p-2.5 rounded-xl border transition-all hover:scale-105 ${
                 showSettings
-                  ? "bg-orange-500 text-white border-orange-400"
-                  : darkMode
+                  ? theme === "green"
+                    ? "bg-emerald-600 text-white border-emerald-500"
+                    : "bg-orange-500 text-white border-orange-400"
+                  : theme === "dark"
                   ? "bg-zinc-800 border-zinc-700 text-slate-300"
+                  : theme === "green"
+                  ? "bg-[#e2efe2] border-[#cfe2cf] text-emerald-800"
                   : "bg-orange-50 border-[#e5e5e5] text-orange-700"
               }`}
               title="تنظیمات قلم و ظاهر"
@@ -602,7 +716,9 @@ export default function App() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="fixed bottom-6 left-6 z-40 p-3 rounded-full bg-orange-500 text-white shadow-xl hover:bg-orange-600 transition-colors"
+            className={`fixed bottom-6 left-6 z-40 p-3 rounded-full text-white shadow-xl transition-colors ${
+              theme === "green" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-orange-500 hover:bg-orange-600"
+            }`}
             title="رفتن به بالای صفحه"
           >
             <ArrowUp className="w-5 h-5" />
@@ -631,13 +747,19 @@ export default function App() {
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
                 transition={{ type: "spring", duration: 0.4 }}
                 className={`w-full max-w-sm rounded-2xl border p-5 shadow-2xl relative z-10 ${
-                  darkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-[#e5e5e5]"
+                  theme === "dark"
+                    ? "bg-zinc-900 border-zinc-800 text-white"
+                    : theme === "green"
+                    ? "bg-[#fafdfa] border-[#cce0cc] text-emerald-950"
+                    : "bg-white border-[#e5e5e5] text-[#2d2d2d]"
                 }`}
               >
                 <div className="flex items-center justify-between mb-4 border-b pb-3 border-black/[0.05] dark:border-white/[0.05]">
                   <div className="flex items-center gap-2">
-                    {darkMode ? (
+                    {theme === "dark" ? (
                       <Moon className="w-5 h-5 text-amber-400" />
+                    ) : theme === "green" ? (
+                      <BookOpen className="w-5 h-5 text-emerald-600" />
                     ) : (
                       <Sun className="w-5 h-5 text-orange-500" />
                     )}
@@ -656,35 +778,50 @@ export default function App() {
                     حالت نمایش برنامه را با توجه به نور محیط خود انتخاب کنید تا قرائت دعا برای شما آسان‌تر شود:
                   </p>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-2">
                     <button
                       onClick={() => {
-                        setDarkMode(false);
+                        setTheme("cream");
                         triggerToast("پوسته روز (کرم گرم) فعال شد");
                       }}
-                      className={`p-4 rounded-xl border flex flex-col items-center gap-2.5 transition-all ${
-                        !darkMode
-                          ? "bg-orange-50 border-orange-400 text-orange-955 ring-2 ring-orange-500/15"
-                          : "bg-zinc-800/40 border-zinc-700/80 text-slate-300 hover:bg-zinc-800"
+                      className={`p-3 rounded-xl border flex flex-col items-center gap-2 transition-all ${
+                        theme === "cream"
+                          ? "bg-orange-50 border-orange-400 text-orange-950 ring-2 ring-orange-500/15"
+                          : "bg-black/[0.02] border-black/[0.08] dark:bg-zinc-800/40 dark:border-zinc-700/80 text-slate-500 dark:text-slate-300 hover:bg-black/[0.05]"
                       }`}
                     >
-                      <Sun className={`w-6 h-6 ${!darkMode ? "text-orange-500" : "text-slate-400"}`} />
-                      <span className="text-xs font-bold">پوسته روز (روشن)</span>
+                      <Sun className={`w-5 h-5 ${theme === "cream" ? "text-orange-500" : "text-slate-400"}`} />
+                      <span className="text-[10px] font-bold">پوسته کرم</span>
                     </button>
 
                     <button
                       onClick={() => {
-                        setDarkMode(true);
+                        setTheme("dark");
                         triggerToast("پوسته شب (زغالی آرام) فعال شد");
                       }}
-                      className={`p-4 rounded-xl border flex flex-col items-center gap-2.5 transition-all ${
-                        darkMode
-                          ? "bg-zinc-800 border-orange-500/50 text-slate-100 ring-2 ring-orange-500/10"
-                          : "bg-orange-50/20 border-[#e5e5e5] text-orange-900 hover:bg-orange-50/50"
+                      className={`p-3 rounded-xl border flex flex-col items-center gap-2 transition-all ${
+                        theme === "dark"
+                          ? "bg-zinc-850 border-orange-500/40 text-slate-100 ring-2 ring-orange-500/10"
+                          : "bg-black/[0.02] border-black/[0.08] dark:bg-zinc-800/40 dark:border-zinc-700/80 text-slate-500 dark:text-slate-300 hover:bg-black/[0.05]"
                       }`}
                     >
-                      <Moon className={`w-6 h-6 ${darkMode ? "text-amber-400" : "text-slate-500"}`} />
-                      <span className="text-xs font-bold">پوسته شب (تاریک)</span>
+                      <Moon className={`w-5 h-5 ${theme === "dark" ? "text-amber-400" : "text-slate-400"}`} />
+                      <span className="text-[10px] font-bold">پوسته شب</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setTheme("green");
+                        triggerToast("پوسته سبز (معنوی) فعال شد");
+                      }}
+                      className={`p-3 rounded-xl border flex flex-col items-center gap-2 transition-all ${
+                        theme === "green"
+                          ? "bg-emerald-50 border-emerald-500 text-emerald-950 ring-2 ring-emerald-500/15"
+                          : "bg-black/[0.02] border-black/[0.08] dark:bg-zinc-800/40 dark:border-zinc-700/80 text-slate-500 dark:text-slate-300 hover:bg-black/[0.05]"
+                      }`}
+                    >
+                      <BookOpen className={`w-5 h-5 ${theme === "green" ? "text-emerald-600" : "text-slate-400"}`} />
+                      <span className="text-[10px] font-bold">پوسته سبز</span>
                     </button>
                   </div>
                 </div>
@@ -692,7 +829,9 @@ export default function App() {
                 <div className="mt-5 pt-3 border-t border-black/[0.05] dark:border-white/[0.05] flex justify-end">
                   <button
                     onClick={() => setShowThemeModal(false)}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-orange-500 text-white hover:bg-orange-600 transition-colors shadow-sm"
+                    className={`px-4 py-2 rounded-xl text-xs font-semibold text-white transition-colors shadow-sm ${
+                      theme === "green" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-orange-500 hover:bg-orange-600"
+                    }`}
                   >
                     تایید و بستن
                   </button>
@@ -722,12 +861,16 @@ export default function App() {
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
                 transition={{ type: "spring", duration: 0.45 }}
                 className={`w-full max-w-xl rounded-2xl border p-5 shadow-2xl relative z-10 overflow-y-auto max-h-[85vh] ${
-                  darkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-[#e5e5e5]"
+                  theme === "dark"
+                    ? "bg-zinc-900 border-zinc-800 text-white"
+                    : theme === "green"
+                    ? "bg-[#fafdfa] border-[#cce0cc] text-emerald-950"
+                    : "bg-white border-[#e5e5e5] text-[#2d2d2d]"
                 }`}
               >
                 <div className="flex items-center justify-between mb-4 border-b pb-3 border-black/[0.05] dark:border-white/[0.05]">
                   <div className="flex items-center gap-2">
-                    <Grid className="w-5 h-5 text-orange-500" />
+                    <Grid className={`w-5 h-5 ${theme === "green" ? "text-emerald-600" : "text-orange-500"}`} />
                     <h3 className="font-bold text-base">پرش سریع به بندهای استغفار</h3>
                   </div>
                   <div className="flex items-center gap-3">
@@ -754,9 +897,13 @@ export default function App() {
                         }}
                         className={`py-2 rounded-xl text-xs font-semibold transition-all relative ${
                           isRead
-                            ? "bg-orange-500/20 text-orange-700 dark:text-orange-400 border border-orange-500/30"
-                            : darkMode
+                            ? theme === "green"
+                              ? "bg-emerald-600/20 text-emerald-800 border border-emerald-600/30 font-bold"
+                              : "bg-orange-500/20 text-orange-700 dark:text-orange-400 border border-orange-500/30 font-bold"
+                            : theme === "dark"
                             ? "bg-zinc-800 hover:bg-zinc-700 text-slate-300"
+                            : theme === "green"
+                            ? "bg-emerald-50 hover:bg-[#d4ead4] text-emerald-800 border border-[#cfe2cf]"
                             : "bg-orange-50 hover:bg-orange-100 text-orange-800 border border-[#e5e5e5]"
                         }`}
                       >
@@ -772,7 +919,9 @@ export default function App() {
                 <div className="mt-5 pt-3 border-t border-black/[0.05] dark:border-white/[0.05] flex justify-end">
                   <button
                     onClick={() => setShowIntroJumpGrid(false)}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-orange-500 text-white hover:bg-orange-600 transition-colors shadow-sm"
+                    className={`px-4 py-2 rounded-xl text-xs font-semibold text-white transition-colors shadow-sm ${
+                      theme === "green" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-orange-500 hover:bg-orange-600"
+                    }`}
                   >
                     بستن
                   </button>
@@ -802,17 +951,22 @@ export default function App() {
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
                 transition={{ type: "spring", duration: 0.45 }}
                 className={`w-full max-w-xl rounded-2xl border p-5 shadow-2xl relative z-10 overflow-y-auto max-h-[90vh] space-y-5 ${
-                  darkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-[#e5e5e5]"
+                  theme === "dark"
+                    ? "bg-zinc-900 border-zinc-800 text-white"
+                    : theme === "green"
+                    ? "bg-[#fafdfa] border-[#cfe2cf] text-emerald-950"
+                    : "bg-white border-[#e5e5e5] text-[#2d2d2d]"
                 }`}
               >
                 <div className="flex items-center justify-between border-b pb-3 border-black/[0.05] dark:border-white/[0.05]">
                   <div className="flex items-center gap-2">
-                    <Sliders className="w-5 h-5 text-orange-500" />
+                    <Sliders className={`w-5 h-5 ${theme === "green" ? "text-emerald-600" : "text-orange-500"}`} />
                     <h3 className="font-bold text-base">تنظیمات ظاهر و ابزارها</h3>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => {
+                        setTheme("green");
                         setArabicFontSize(22);
                         setPersianFontSize(15);
                         setSelectedFont("Amiri");
@@ -820,7 +974,9 @@ export default function App() {
                         setTranslationMode("sentence");
                         triggerToast("تنظیمات به حالت اولیه بازگشت");
                       }}
-                      className="text-xs text-orange-500 flex items-center gap-1 hover:underline ml-2"
+                      className={`text-xs flex items-center gap-1 hover:underline ml-2 ${
+                        theme === "green" ? "text-emerald-600" : "text-orange-500"
+                      }`}
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       <span>بازنشانی</span>
@@ -834,15 +990,61 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Theme Selector Section */}
+                <div className="space-y-2 pb-1">
+                  <span className="text-xs font-medium text-slate-400 block">پوسته و رنگ نمایش (تم)</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => setTheme("cream")}
+                      className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                        theme === "cream"
+                          ? "bg-amber-100/90 border-amber-400 text-amber-950 ring-2 ring-amber-400/40 shadow-sm"
+                          : theme === "dark"
+                          ? "bg-zinc-800 border-zinc-700 text-slate-300 hover:bg-zinc-700"
+                          : "bg-amber-50/40 border-amber-200/60 text-amber-900/80 hover:bg-amber-100/50"
+                      }`}
+                    >
+                      <Sun className="w-4 h-4 text-amber-600" />
+                      <span>کرم (روز)</span>
+                    </button>
+
+                    <button
+                      onClick={() => setTheme("green")}
+                      className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                        theme === "green"
+                          ? "bg-emerald-100 border-emerald-500 text-emerald-950 ring-2 ring-emerald-500/40 shadow-sm"
+                          : theme === "dark"
+                          ? "bg-zinc-800 border-zinc-700 text-slate-300 hover:bg-zinc-700"
+                          : "bg-emerald-50/40 border-emerald-200/60 text-emerald-900/80 hover:bg-emerald-100/50"
+                      }`}
+                    >
+                      <BookOpen className="w-4 h-4 text-emerald-600" />
+                      <span>سبز زمردی</span>
+                    </button>
+
+                    <button
+                      onClick={() => setTheme("dark")}
+                      className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                        theme === "dark"
+                          ? "bg-zinc-800 border-zinc-600 text-slate-100 ring-2 ring-zinc-500/40 shadow-sm"
+                          : "bg-zinc-100 border-zinc-200 text-zinc-800 hover:bg-zinc-200"
+                      }`}
+                    >
+                      <Moon className="w-4 h-4 text-indigo-400" />
+                      <span>شب (تاریک)</span>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Font Sizer Controls */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="space-y-2">
                     <div className="flex justify-between text-xs font-medium">
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1 text-slate-450">
                         <Type className="w-3.5 h-3.5 text-slate-400" />
                         اندازه قلم متن عربی
                       </span>
-                      <span className="font-semibold text-orange-600">{arabicFontSize} پیکسل</span>
+                      <span className={`font-semibold ${theme === "green" ? "text-emerald-700" : "text-orange-600"}`}>{arabicFontSize} پیکسل</span>
                     </div>
                     <input
                       type="range"
@@ -850,10 +1052,18 @@ export default function App() {
                       max="34"
                       value={arabicFontSize}
                       onChange={(e) => setArabicFontSize(parseInt(e.target.value, 10))}
-                      className="w-full h-1.5 bg-slate-300 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                      className={`w-full h-1.5 bg-slate-300 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer ${
+                        theme === "green" ? "accent-emerald-600" : "accent-orange-500"
+                      }`}
                     />
                     <p
-                      className="text-center font-arabic border py-1.5 px-2 rounded-lg truncate mt-1 bg-orange-500/5 dark:bg-zinc-800/40"
+                      className={`text-center font-arabic border py-1.5 px-2 rounded-lg truncate mt-1 ${
+                        theme === "dark"
+                          ? "bg-zinc-850 border-zinc-800"
+                          : theme === "green"
+                          ? "bg-emerald-600/5 border-emerald-600/20"
+                          : "bg-orange-500/5 border-orange-500/10"
+                      }`}
                       style={{ fontSize: `${arabicFontSize}px`, fontFamily: getFontFamily(selectedFont) }}
                     >
                       بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ
@@ -862,11 +1072,11 @@ export default function App() {
 
                   <div className="space-y-2">
                     <div className="flex justify-between text-xs font-medium">
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1 text-slate-450">
                         <Type className="w-3.5 h-3.5 text-slate-400" />
                         اندازه قلم ترجمه فارسی
                       </span>
-                      <span className="font-semibold text-orange-600">{persianFontSize} پیکسل</span>
+                      <span className={`font-semibold ${theme === "green" ? "text-emerald-700" : "text-orange-600"}`}>{persianFontSize} پیکسل</span>
                     </div>
                     <input
                       type="range"
@@ -874,10 +1084,18 @@ export default function App() {
                       max="24"
                       value={persianFontSize}
                       onChange={(e) => setPersianFontSize(parseInt(e.target.value, 10))}
-                      className="w-full h-1.5 bg-slate-300 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                      className={`w-full h-1.5 bg-slate-300 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer ${
+                        theme === "green" ? "accent-emerald-600" : "accent-orange-500"
+                      }`}
                     />
                     <p
-                      className="text-center border py-1.5 px-2 rounded-lg truncate mt-1 bg-orange-500/5 dark:bg-zinc-800/40 font-sans"
+                      className={`text-center border py-1.5 px-2 rounded-lg truncate mt-1 font-sans ${
+                        theme === "dark"
+                          ? "bg-zinc-850 border-zinc-800"
+                          : theme === "green"
+                          ? "bg-emerald-600/5 border-emerald-600/20"
+                          : "bg-orange-500/5 border-orange-500/10"
+                      }`}
                       style={{ fontSize: `${persianFontSize}px` }}
                     >
                       به نام خداوند بخشنده مهربان
@@ -896,13 +1114,17 @@ export default function App() {
                           onClick={() => setSelectedFont(font)}
                           className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all border ${
                             selectedFont === font
-                              ? "bg-orange-500 text-white border-orange-400"
-                              : darkMode
+                              ? theme === "green"
+                                ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
+                                : "bg-orange-500 text-white border-orange-400 shadow-sm"
+                              : theme === "dark"
                               ? "bg-zinc-800 border-zinc-700 text-slate-300 hover:bg-zinc-700"
+                              : theme === "green"
+                              ? "bg-[#e2efe2]/80 border-[#cfe2cf] text-emerald-800 hover:bg-emerald-100"
                               : "bg-orange-50 border-[#e5e5e5] text-orange-800 hover:bg-orange-100"
                           }`}
                         >
-                          {font === "Scheherazade" ? "قلم شهرزاد" : font === "Amiri" ? "قلم امیری (نسخ)" : font === "Vazirmatn" ? "وزیرمتن" : "سیستم"}
+                          {font === "Scheherazade" ? "قلم شهرزاد" : font === "Amiri" ? "قلم امیری" : font === "Vazirmatn" ? "وزیرمتن" : "سیستم"}
                         </button>
                       ))}
                     </div>
@@ -915,10 +1137,14 @@ export default function App() {
                         onClick={() => setShowTranslation(!showTranslation)}
                         className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-center gap-1.5 ${
                           showTranslation
-                            ? "bg-orange-500 text-white border-orange-400"
-                            : darkMode
-                            ? "bg-zinc-800 border-zinc-700 text-slate-400"
-                            : "bg-orange-50 border-[#e5e5e5] text-orange-800"
+                            ? theme === "green"
+                              ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
+                              : "bg-orange-500 text-white border-orange-400 shadow-sm"
+                            : theme === "dark"
+                            ? "bg-zinc-800 border-zinc-700 text-slate-400 hover:bg-zinc-700"
+                            : theme === "green"
+                            ? "bg-[#e2efe2]/80 border-[#cfe2cf] text-emerald-850 hover:bg-emerald-100"
+                            : "bg-orange-50 border-[#e5e5e5] text-orange-800 hover:bg-orange-100"
                         }`}
                       >
                         {showTranslation ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -929,20 +1155,24 @@ export default function App() {
                         <div className="flex bg-slate-100 dark:bg-zinc-800 p-0.5 rounded-xl border border-black/[0.05] dark:border-white/[0.05] flex-1 min-w-[200px]">
                           <button
                             onClick={() => setTranslationMode("sentence")}
-                            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+                            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
                               translationMode === "sentence"
-                                ? "bg-orange-500 text-white shadow-sm"
-                                : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                                ? theme === "green"
+                                  ? "bg-emerald-600 text-white shadow-sm"
+                                  : "bg-orange-500 text-white shadow-sm"
+                                : "text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-250"
                             }`}
                           >
                             جمله به جمله
                           </button>
                           <button
                             onClick={() => setTranslationMode("block")}
-                            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+                            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
                               translationMode === "block"
-                                ? "bg-orange-500 text-white shadow-sm"
-                                : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                                ? theme === "green"
+                                  ? "bg-emerald-600 text-white shadow-sm"
+                                  : "bg-orange-500 text-white shadow-sm"
+                                : "text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-250"
                             }`}
                           >
                             بند کامل
@@ -967,7 +1197,9 @@ export default function App() {
                 <div className="pt-3 border-t border-black/[0.05] dark:border-white/[0.05] flex justify-end">
                   <button
                     onClick={() => setShowSettings(false)}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-orange-500 text-white hover:bg-orange-600 transition-colors shadow-sm"
+                    className={`px-4 py-2 rounded-xl text-xs font-semibold text-white transition-colors shadow-sm ${
+                      theme === "green" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-orange-500 hover:bg-orange-600"
+                    }`}
                   >
                     بستن تنظیمات
                   </button>
@@ -976,33 +1208,31 @@ export default function App() {
             </div>
           )}
         </AnimatePresence>
-
-        {/* Introduction Section Toggle & Card */}
         <div
-          className={`p-4 rounded-2xl border transition-all ${
-            darkMode
-              ? "bg-zinc-900/60 border-zinc-800"
-              : "bg-white border-[#eeeeee] shadow-[0_2px_4px_rgba(0,0,0,0.02)]"
-          }`}
+          className={`p-4 rounded-2xl border transition-all ${getCardBg()}`}
         >
           <div className="flex items-center justify-between">
             <button
               onClick={() => setShowIntro(!showIntro)}
               className="flex items-center gap-2 hover:opacity-80 transition-all text-right"
             >
-              <div className="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                theme === "green" ? "bg-emerald-500/10 text-emerald-600" : "bg-orange-500/10 text-orange-600 dark:text-orange-400"
+              }`}>
                 <BookOpen className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="font-bold text-sm">مقدمه، فضیلت و داستان آموزش استغفار ۷۰ بندی</h3>
+                <h3 className="font-bold text-sm">روایت استغفار ۷۰ بندی حضرت علی (ع)</h3>
                 <p className="text-[10px] text-slate-400">چرا باید این دعا را با آگاهی و گریه بخوانیم؟</p>
               </div>
             </button>
             <button
               onClick={() => setShowIntro(!showIntro)}
               className={`text-xs px-2.5 py-1.5 rounded-lg border font-semibold ${
-                darkMode
+                theme === "dark"
                   ? "border-zinc-700 bg-zinc-800 text-slate-300"
+                  : theme === "green"
+                  ? "border-[#cfe2cf] bg-emerald-50/80 text-emerald-800 hover:bg-emerald-100"
                   : "border-[#e5e5e5] bg-orange-50 text-orange-700 hover:bg-orange-100/50"
               }`}
             >
@@ -1020,12 +1250,16 @@ export default function App() {
               >
                 {introText.sections.map((sec, idx) => (
                   <div key={idx} className="space-y-2">
-                    <h4 className="font-bold text-xs text-orange-500 flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                    <h4 className={`font-bold text-xs flex items-center gap-1.5 ${
+                      theme === "green" ? "text-emerald-700" : "text-orange-500"
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${
+                        theme === "green" ? "bg-emerald-600" : "bg-orange-500"
+                      }`}></span>
                       {sec.title}
                     </h4>
                     <p className={`text-xs leading-relaxed text-justify whitespace-pre-line ${
-                      darkMode ? "text-slate-300" : "text-[#5d5d5d]"
+                      theme === "dark" ? "text-slate-300" : "text-[#4d4d4d]"
                     }`}>
                       {sec.content}
                     </p>
@@ -1034,40 +1268,6 @@ export default function App() {
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
-
-        {/* Global Progress Statistics Banner */}
-        <div
-          className={`p-4 rounded-2xl border transition-all ${
-            darkMode
-              ? "bg-zinc-950/40 border-zinc-850"
-              : "bg-orange-50/60 border-orange-150/80 shadow-[0_2px_4px_rgba(0,0,0,0.01)]"
-          }`}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-                وضعیت پیشرفت قرائت
-              </span>
-              <h3 className="font-bold text-sm">
-                قرائت شده: <span className="text-orange-600 dark:text-orange-400">{readBands.length}</span> از{" "}
-                <span className="font-semibold">۷۰</span> بند ({getProgressPercentage()}٪)
-              </h3>
-            </div>
-            <div className="flex items-center gap-3">
-              {/* Progress Slider Display */}
-              <div className="w-full sm:w-36 h-2 bg-orange-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-orange-400 transition-all duration-500"
-                  style={{ width: `${getProgressPercentage()}%` }}
-                ></div>
-              </div>
-              <span className="text-xs font-mono font-bold text-orange-600 dark:text-orange-400">
-                {getProgressPercentage()}%
-              </span>
-            </div>
-          </div>
         </div>
 
         {/* Search, View Mode, and Filters Row */}
@@ -1083,16 +1283,22 @@ export default function App() {
                 placeholder="جستجو در متن عربی یا معنی فارسی..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full pr-9 pl-4 py-2.5 rounded-xl border text-sm transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 ${
-                  darkMode
+                className={`w-full pr-9 pl-4 py-2.5 rounded-xl border text-sm transition-all focus:outline-none focus:ring-2 ${
+                  theme === "green" ? "focus:ring-emerald-500" : "focus:ring-orange-500"
+                } ${
+                  theme === "dark"
                     ? "bg-zinc-900 border-zinc-800 text-slate-100 placeholder-slate-500"
+                    : theme === "green"
+                    ? "bg-[#fafdfa] border-[#cfe2cf] text-emerald-950 placeholder-emerald-800/40"
                     : "bg-white border-[#eeeeee] text-slate-900 placeholder-slate-400 shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
                 }`}
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute inset-y-0 left-0 pl-3 flex items-center text-xs text-slate-400 hover:text-orange-500"
+                  className={`absolute inset-y-0 left-0 pl-3 flex items-center text-xs text-slate-400 ${
+                    theme === "green" ? "hover:text-emerald-600" : "hover:text-orange-500"
+                  }`}
                 >
                   پاک کردن
                 </button>
@@ -1100,12 +1306,22 @@ export default function App() {
             </div>
 
             {/* View Mode Toggle (List vs Focus Mode) */}
-            <div className="flex gap-1.5 p-1 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-[#eeeeee] dark:border-zinc-800/80">
+            <div className={`flex gap-1.5 p-1 rounded-xl border ${
+              theme === "dark"
+                ? "bg-zinc-850 border-zinc-800/80"
+                : theme === "green"
+                ? "bg-[#e2efe2]/40 border-[#cfe2cf]"
+                : "bg-zinc-100 border-[#eeeeee]"
+            }`}>
               <button
                 onClick={() => setViewMode("list")}
                 className={`flex-1 sm:flex-none py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                   viewMode === "list"
-                    ? "bg-orange-500 text-white shadow"
+                    ? theme === "green"
+                      ? "bg-emerald-600 text-white shadow"
+                      : "bg-orange-500 text-white shadow"
+                    : theme === "green"
+                    ? "text-emerald-800 hover:text-emerald-600"
                     : "text-slate-500 dark:text-slate-400 hover:text-orange-600 dark:hover:text-slate-300"
                 }`}
               >
@@ -1119,7 +1335,11 @@ export default function App() {
                 }}
                 className={`flex-1 sm:flex-none py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                   viewMode === "focus"
-                    ? "bg-orange-500 text-white shadow"
+                    ? theme === "green"
+                      ? "bg-emerald-600 text-white shadow"
+                      : "bg-orange-500 text-white shadow"
+                    : theme === "green"
+                    ? "text-emerald-800 hover:text-emerald-600"
                     : "text-slate-500 dark:text-slate-400 hover:text-orange-600 dark:hover:text-slate-300"
                 }`}
               >
@@ -1133,18 +1353,20 @@ export default function App() {
           <div className="flex gap-2 overflow-x-auto pb-1">
             {[
               { id: "all", label: "همه بندها" },
-              { id: "bookmarked", label: "نشانه‌گذاری شده" },
-              { id: "read", label: "خوانده شده" },
-              { id: "unread", label: "خوانده نشده" }
+              { id: "bookmarked", label: "نشانه‌گذاری شده" }
             ].map((pill) => (
               <button
                 key={pill.id}
                 onClick={() => setFilterMode(pill.id as any)}
                 className={`py-1.5 px-3.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
                   filterMode === pill.id
-                    ? "bg-orange-500 text-white border-orange-400 shadow-sm"
-                    : darkMode
+                    ? theme === "green"
+                      ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
+                      : "bg-orange-500 text-white border-orange-400 shadow-sm"
+                    : theme === "dark"
                     ? "bg-zinc-800/80 border-zinc-700/50 text-slate-300 hover:bg-zinc-700"
+                    : theme === "green"
+                    ? "bg-[#fafdfa] border-[#cfe2cf] text-emerald-800 hover:bg-emerald-100"
                     : "bg-white border-[#e5e5e5] text-slate-600 hover:bg-orange-50"
                 }`}
               >
@@ -1152,11 +1374,6 @@ export default function App() {
                 {pill.id === "bookmarked" && bookmarkedBands.length > 0 && (
                   <span className="mr-1 px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-mono">
                     {bookmarkedBands.length}
-                  </span>
-                )}
-                {pill.id === "read" && readBands.length > 0 && (
-                  <span className="mr-1 px-1.5 py-0.5 rounded-full bg-orange-200 text-orange-950 text-[9px] font-mono">
-                    {readBands.length}
                   </span>
                 )}
               </button>
@@ -1168,14 +1385,16 @@ export default function App() {
         {filteredBands.length === 0 ? (
           <div
             className={`p-12 text-center rounded-2xl border ${
-              darkMode ? "bg-zinc-900/50 border-zinc-800" : "bg-white border-[#eeeeee]"
+              theme === "dark" ? "bg-zinc-900/50 border-zinc-800" : theme === "green" ? "bg-[#fafdfa] border-[#cfe2cf]" : "bg-white border-[#eeeeee]"
             }`}
           >
             <p className="text-slate-400 text-sm">هیچ بندی با فیلتر فعلی یافت نشد.</p>
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="mt-2 text-xs text-orange-500 font-bold hover:underline"
+                className={`mt-2 text-xs font-bold hover:underline ${
+                  theme === "green" ? "text-emerald-600" : "text-orange-500"
+                }`}
               >
                 پاک کردن جستجو
               </button>
@@ -1193,20 +1412,14 @@ export default function App() {
                 <div
                   key={band.id}
                   id={`band-${band.id}`}
-                  className={`p-5 md:p-6 rounded-2xl border transition-all duration-300 relative ${
-                    isRead
-                      ? darkMode
-                        ? "bg-zinc-900/80 border-orange-950/40 shadow-sm"
-                        : "bg-orange-50/20 border-orange-100 shadow-sm"
-                      : darkMode
-                      ? "bg-zinc-900 border-zinc-800 shadow-sm hover:border-zinc-700"
-                      : "bg-white border-[#eeeeee] shadow-sm hover:border-orange-200"
-                  }`}
+                  className={`p-5 md:p-6 rounded-2xl border transition-all duration-300 relative ${getCardBg(isRead)}`}
                 >
                   {/* Card Header */}
                   <div className="flex items-center justify-between mb-4 border-b pb-3 border-black/[0.05] dark:border-white/[0.05]">
                     <div className="flex items-center gap-2">
-                      <span className="w-8 h-8 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 text-xs font-bold flex items-center justify-center">
+                      <span className={`w-8 h-8 rounded-full text-xs font-bold flex items-center justify-center ${
+                        theme === "green" ? "bg-emerald-500/10 text-emerald-600" : "bg-orange-500/10 text-orange-600 dark:text-orange-400"
+                      }`}>
                         {band.id}
                       </span>
                       <h4 className="font-bold text-sm tracking-tight">بند {band.id}</h4>
@@ -1228,7 +1441,9 @@ export default function App() {
                       <button
                         onClick={() => toggleRead(band.id)}
                         className={`p-1.5 rounded-lg transition-all ${
-                          isRead ? "text-orange-500 scale-110" : "text-slate-400 hover:text-orange-500"
+                          isRead 
+                            ? theme === "green" ? "text-emerald-600 scale-110" : "text-orange-500 scale-110"
+                            : theme === "green" ? "text-slate-400 hover:text-emerald-600" : "text-slate-400 hover:text-orange-500"
                         }`}
                         title={isRead ? "علامت به عنوان خوانده‌نشده" : "علامت به عنوان خوانده‌شده"}
                       >
@@ -1257,11 +1472,7 @@ export default function App() {
                                     : { bandId: band.id, segmentIndex: idx }
                                 );
                               }}
-                              className={`pb-3 border-b last:border-0 border-dashed border-black/[0.06] dark:border-white/[0.06] space-y-2 cursor-pointer transition-all duration-200 rounded-xl px-3 py-1.5 -mx-3 ${
-                                isHighlighted 
-                                  ? "bg-orange-500/10 border-orange-500/20" 
-                                  : "hover:bg-slate-500/5"
-                              }`}
+                              className={`pb-3 border-b last:border-0 border-dashed border-black/[0.06] dark:border-white/[0.06] space-y-2 cursor-pointer transition-all duration-200 rounded-xl px-3 py-1.5 -mx-3 ${getInteractiveSegmentClass(isHighlighted)}`}
                             >
                               <p
                                 className="leading-relaxed font-arabic font-normal tracking-wide text-justify select-all"
@@ -1275,7 +1486,7 @@ export default function App() {
                               </p>
                               <p
                                 className={`text-justify ${
-                                  darkMode ? "text-slate-300" : "text-[#5d5d5d]"
+                                  theme === "dark" ? "text-slate-300" : "text-[#4d4d4d]"
                                 }`}
                                 style={{
                                   fontSize: `${persianFontSize}px`,
@@ -1318,7 +1529,9 @@ export default function App() {
                                   }}
                                   className={`transition-colors duration-200 rounded px-0.5 inline cursor-pointer ${
                                     isHighlighted
-                                      ? "bg-orange-500/20 text-orange-600 dark:text-orange-400 font-semibold"
+                                      ? theme === "green"
+                                        ? "bg-emerald-500/20 text-emerald-850 font-semibold"
+                                        : "bg-orange-500/20 text-orange-600 dark:text-orange-400 font-semibold"
                                       : "hover:bg-slate-500/10"
                                   }`}
                                 >
@@ -1333,14 +1546,16 @@ export default function App() {
                         {showTranslation && (
                           <div
                             className={`pt-4 border-t border-black/[0.05] dark:border-white/[0.05] text-justify ${
-                              darkMode ? "text-slate-300" : "text-[#5d5d5d]"
+                              theme === "dark" ? "text-slate-300" : "text-[#4d4d4d]"
                             }`}
                             style={{
                               fontSize: `${persianFontSize}px`,
                               lineHeight: "1.7"
                             }}
                           >
-                            <span className="text-orange-500 font-bold block text-xs mb-1.5">ترجمه فارسی:</span>
+                            <span className={`font-bold block text-xs mb-1.5 ${
+                              theme === "green" ? "text-emerald-700" : "text-orange-500"
+                            }`}>ترجمه فارسی:</span>
                             <p className="leading-relaxed text-justify">
                               {getBandSegments(band).map((pair, idx) => {
                                 const isHighlighted = (hoveredSegment?.bandId === band.id && hoveredSegment?.segmentIndex === idx) ||
@@ -1360,7 +1575,9 @@ export default function App() {
                                     }}
                                     className={`transition-colors duration-200 rounded px-0.5 inline cursor-pointer ${
                                       isHighlighted
-                                        ? "bg-orange-500/20 text-orange-950 dark:text-orange-100 font-semibold"
+                                        ? theme === "green"
+                                          ? "bg-emerald-500/20 text-emerald-950 font-semibold"
+                                          : "bg-orange-500/20 text-orange-955 dark:text-orange-100 font-semibold"
                                         : "hover:bg-slate-500/10"
                                     }`}
                                   >
@@ -1382,7 +1599,11 @@ export default function App() {
                       <span className="text-slate-400 font-medium">ذکربند:</span>
                       <button
                         onClick={() => incrementTasbih(band.id)}
-                        className="py-1 px-2.5 rounded-lg bg-orange-600 text-white font-mono font-bold hover:bg-orange-500 transition-colors shadow-sm shadow-orange-500/10"
+                        className={`py-1 px-2.5 rounded-lg text-white font-mono font-bold transition-all shadow-sm ${
+                          theme === "green"
+                            ? "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/10"
+                            : "bg-orange-600 hover:bg-orange-500 shadow-orange-500/10"
+                        }`}
                       >
                         {tasbihCount} مرتبه
                       </button>
@@ -1427,7 +1648,7 @@ export default function App() {
           <div ref={focusContainerRef} className="space-y-4">
             <div className="flex items-center justify-between text-xs px-2">
               <span className="text-slate-400">
-                بند <span className="font-bold text-orange-500">{currentFocusIndex + 1}</span> از{" "}
+                بند <span className={`font-bold ${theme === "green" ? "text-emerald-600" : "text-orange-500"}`}>{currentFocusIndex + 1}</span> از{" "}
                 <span className="font-semibold">{filteredBands.length}</span> (فیلتر شده)
               </span>
               <span className="text-slate-400">حالت مطالعه تمرکزی</span>
@@ -1439,7 +1660,9 @@ export default function App() {
               <button
                 onClick={() => setCurrentFocusIndex((prev) => Math.max(0, prev - 1))}
                 disabled={currentFocusIndex === 0}
-                className="absolute top-1/2 -right-4 -translate-y-1/2 z-10 p-2 rounded-full shadow-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all hidden md:flex"
+                className={`absolute top-1/2 -right-4 -translate-y-1/2 z-10 p-2 rounded-full shadow-lg text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all hidden md:flex ${
+                  theme === "green" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-orange-500 hover:bg-orange-600"
+                }`}
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -1447,7 +1670,9 @@ export default function App() {
               <button
                 onClick={() => setCurrentFocusIndex((prev) => Math.min(filteredBands.length - 1, prev + 1))}
                 disabled={currentFocusIndex === filteredBands.length - 1}
-                className="absolute top-1/2 -left-4 -translate-y-1/2 z-10 p-2 rounded-full shadow-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all hidden md:flex"
+                className={`absolute top-1/2 -left-4 -translate-y-1/2 z-10 p-2 rounded-full shadow-lg text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all hidden md:flex ${
+                  theme === "green" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-orange-500 hover:bg-orange-600"
+                }`}
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -1460,20 +1685,14 @@ export default function App() {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.2 }}
-                  className={`p-6 md:p-8 rounded-3xl border shadow-xl transition-all ${
-                    readBands.includes(filteredBands[currentFocusIndex]?.id)
-                      ? darkMode
-                        ? "bg-zinc-900/80 border-orange-950/40"
-                        : "bg-orange-50/20 border-orange-100"
-                      : darkMode
-                      ? "bg-zinc-900 border-zinc-800"
-                      : "bg-white border-[#eeeeee]"
-                  }`}
+                  className={`p-6 md:p-8 rounded-3xl border shadow-xl transition-all ${getCardBg(readBands.includes(filteredBands[currentFocusIndex]?.id))}`}
                 >
                   {/* Card Title Bar */}
                   <div className="flex items-center justify-between mb-6 border-b pb-4 border-black/[0.05] dark:border-white/[0.05]">
                     <div className="flex items-center gap-2">
-                      <span className="w-10 h-10 rounded-full bg-orange-500 text-white text-sm font-bold flex items-center justify-center shadow-md shadow-orange-500/10">
+                      <span className={`w-10 h-10 rounded-full text-white text-sm font-bold flex items-center justify-center shadow-md ${
+                        theme === "green" ? "bg-emerald-600 shadow-emerald-500/10" : "bg-orange-500 shadow-orange-500/10"
+                      }`}>
                         {filteredBands[currentFocusIndex]?.id}
                       </span>
                       <div>
@@ -1501,7 +1720,11 @@ export default function App() {
                         onClick={() => toggleRead(filteredBands[currentFocusIndex]?.id)}
                         className={`p-2 rounded-xl transition-all ${
                           readBands.includes(filteredBands[currentFocusIndex]?.id)
-                            ? "text-orange-500 bg-orange-500/10 scale-105"
+                            ? theme === "green"
+                              ? "text-emerald-600 bg-emerald-500/10 scale-105"
+                              : "text-orange-500 bg-orange-500/10 scale-105"
+                            : theme === "green"
+                            ? "text-slate-400 hover:text-emerald-600 hover:bg-emerald-500/10"
                             : "text-slate-400 hover:text-orange-500 hover:bg-slate-500/10"
                         }`}
                         title="علامت به عنوان خوانده شده"
@@ -1532,11 +1755,7 @@ export default function App() {
                                     : { bandId: activeBandId, segmentIndex: idx }
                                 );
                               }}
-                              className={`pb-4 border-b last:border-0 border-dashed border-black/[0.06] dark:border-white/[0.06] space-y-2.5 cursor-pointer transition-all duration-200 rounded-2xl px-4 py-2 -mx-4 ${
-                                isHighlighted 
-                                  ? "bg-orange-500/10 border-orange-500/20" 
-                                  : "hover:bg-slate-500/5"
-                              }`}
+                              className={`pb-4 border-b last:border-0 border-dashed border-black/[0.06] dark:border-white/[0.06] space-y-2.5 cursor-pointer transition-all duration-200 rounded-2xl px-4 py-2 -mx-4 ${getInteractiveSegmentClass(isHighlighted)}`}
                             >
                               <p
                                 className="leading-relaxed font-arabic font-normal tracking-wide text-justify select-all"
@@ -1550,7 +1769,7 @@ export default function App() {
                               </p>
                               <p
                                 className={`text-justify ${
-                                  darkMode ? "text-slate-300" : "text-[#5d5d5d]"
+                                  theme === "dark" ? "text-slate-300" : "text-[#4d4d4d]"
                                 }`}
                                 style={{
                                   fontSize: `${persianFontSize + 1}px`,
@@ -1589,12 +1808,14 @@ export default function App() {
                                     setClickedSegment(
                                       clickedSegment?.bandId === activeBandId && clickedSegment?.segmentIndex === idx
                                         ? null
-                                        : { activeBandId, segmentIndex: idx }
+                                        : { bandId: activeBandId, segmentIndex: idx }
                                     );
                                   }}
                                   className={`transition-colors duration-200 rounded px-0.5 inline cursor-pointer ${
                                     isHighlighted
-                                      ? "bg-orange-500/20 text-orange-600 dark:text-orange-400 font-semibold"
+                                      ? theme === "green"
+                                        ? "bg-emerald-500/20 text-emerald-850 font-semibold"
+                                        : "bg-orange-500/20 text-orange-600 dark:text-orange-400 font-semibold"
                                       : "hover:bg-slate-500/10"
                                   }`}
                                 >
@@ -1609,14 +1830,16 @@ export default function App() {
                         {showTranslation && (
                           <div
                             className={`pt-6 border-t border-black/[0.05] dark:border-white/[0.05] text-justify ${
-                              darkMode ? "text-slate-300" : "text-[#5d5d5d]"
+                              theme === "dark" ? "text-slate-300" : "text-[#4d4d4d]"
                             }`}
                             style={{
                               fontSize: `${persianFontSize + 1}px`,
                               lineHeight: "1.8"
                             }}
                           >
-                            <span className="text-orange-500 font-bold block text-sm mb-2">ترجمه فارسی:</span>
+                            <span className={`font-bold block text-sm mb-2 ${
+                              theme === "green" ? "text-emerald-700" : "text-orange-500"
+                            }`}>ترجمه فارسی:</span>
                             <p className="leading-relaxed text-justify">
                               {getBandSegments(filteredBands[currentFocusIndex]).map((pair, idx) => {
                                 const activeBandId = filteredBands[currentFocusIndex]?.id;
@@ -1632,12 +1855,14 @@ export default function App() {
                                       setClickedSegment(
                                         clickedSegment?.bandId === activeBandId && clickedSegment?.segmentIndex === idx
                                           ? null
-                                          : { bandId: activeBandId, segmentIndex: idx }
+                                          : { activeBandId: activeBandId, segmentIndex: idx }
                                       );
                                     }}
                                     className={`transition-colors duration-200 rounded px-0.5 inline cursor-pointer ${
                                       isHighlighted
-                                        ? "bg-orange-500/20 text-orange-950 dark:text-orange-100 font-semibold"
+                                        ? theme === "green"
+                                          ? "bg-emerald-500/20 text-emerald-950 font-semibold"
+                                          : "bg-orange-500/20 text-orange-955 dark:text-orange-100 font-semibold"
                                         : "hover:bg-slate-500/10"
                                     }`}
                                   >
@@ -1658,7 +1883,11 @@ export default function App() {
                       <span className="text-xs text-slate-400">ذکر شمار بند:</span>
                       <button
                         onClick={() => incrementTasbih(filteredBands[currentFocusIndex]?.id)}
-                        className="py-1.5 px-4 rounded-xl bg-orange-600 text-white font-mono font-bold text-xs hover:bg-orange-500 transition-colors shadow-md shadow-orange-500/10"
+                        className={`py-1.5 px-4 rounded-xl text-white font-mono font-bold text-xs transition-all shadow-md ${
+                          theme === "green"
+                            ? "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/10"
+                            : "bg-orange-600 hover:bg-orange-500 shadow-orange-500/10"
+                        }`}
                       >
                         {tasbihCounts[filteredBands[currentFocusIndex]?.id] || 0} مرتبه قرائت
                       </button>
@@ -1702,7 +1931,11 @@ export default function App() {
                 onClick={() => setCurrentFocusIndex((prev) => Math.max(0, prev - 1))}
                 disabled={currentFocusIndex === 0}
                 className={`py-2 px-4 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 ${
-                  darkMode ? "bg-zinc-800 border-zinc-700 text-slate-300 hover:bg-zinc-700" : "bg-white border-[#eeeeee] text-slate-700 hover:bg-orange-50"
+                  theme === "dark"
+                    ? "bg-zinc-800 border-zinc-700 text-slate-300 hover:bg-zinc-700"
+                    : theme === "green"
+                    ? "bg-[#fafdfa] border-[#cfe2cf] text-emerald-800 hover:bg-[#ebf3eb]"
+                    : "bg-white border-[#eeeeee] text-slate-700 hover:bg-orange-50"
                 } disabled:opacity-40 disabled:cursor-not-allowed`}
               >
                 <ChevronRight className="w-4 h-4" />
@@ -1717,7 +1950,11 @@ export default function App() {
                 onClick={() => setCurrentFocusIndex((prev) => Math.min(filteredBands.length - 1, prev + 1))}
                 disabled={currentFocusIndex === filteredBands.length - 1}
                 className={`py-2 px-4 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 ${
-                  darkMode ? "bg-zinc-800 border-zinc-700 text-slate-300 hover:bg-zinc-700" : "bg-white border-[#eeeeee] text-slate-700 hover:bg-orange-50"
+                  theme === "dark"
+                    ? "bg-zinc-800 border-zinc-700 text-slate-300 hover:bg-zinc-700"
+                    : theme === "green"
+                    ? "bg-[#fafdfa] border-[#cfe2cf] text-emerald-800 hover:bg-[#ebf3eb]"
+                    : "bg-white border-[#eeeeee] text-slate-700 hover:bg-orange-50"
                 } disabled:opacity-40 disabled:cursor-not-allowed`}
               >
                 <span>بند بعدی</span>
@@ -1730,13 +1967,15 @@ export default function App() {
         {/* Concluding Section block */}
         <div
           className={`p-6 rounded-3xl border transition-all ${
-            darkMode
-              ? "bg-zinc-900 border-orange-950/40 shadow-lg text-slate-100"
-              : "bg-orange-50/40 border-orange-100 shadow-sm text-slate-900"
+            theme === "dark"
+              ? "bg-zinc-900 border-zinc-800 shadow-lg text-slate-100"
+              : theme === "green"
+              ? "bg-[#fafdfa]/60 border-emerald-200/50 shadow-sm text-emerald-950"
+              : "bg-orange-50/45 border-orange-100/60 shadow-sm text-slate-900"
           }`}
         >
           <div className="flex items-center gap-2 mb-4 border-b pb-3 border-black/[0.05] dark:border-white/[0.05]">
-            <div className="p-2 rounded-xl bg-orange-500 text-white">
+            <div className={`p-2 rounded-xl text-white ${theme === "green" ? "bg-emerald-600" : "bg-orange-500"}`}>
               <Sparkles className="w-4 h-4 animate-pulse" />
             </div>
             <div>
@@ -1772,7 +2011,9 @@ export default function App() {
                     }}
                     className={`transition-colors duration-200 rounded px-0.5 inline cursor-pointer ${
                       isHighlighted
-                        ? "bg-orange-500/20 text-orange-600 dark:text-orange-400 font-semibold"
+                        ? theme === "green"
+                          ? "bg-emerald-500/20 text-emerald-850 font-semibold"
+                          : "bg-orange-500/20 text-orange-600 dark:text-orange-400 font-semibold"
                         : "hover:bg-slate-500/10"
                     }`}
                   >
@@ -1785,7 +2026,7 @@ export default function App() {
             {showTranslation && (
               <p
                 className={`text-justify leading-relaxed pt-3 border-t border-black/[0.05] dark:border-white/[0.05] ${
-                  darkMode ? "text-slate-300" : "text-[#5d5d5d]"
+                  theme === "dark" ? "text-slate-300" : "text-[#4d4d4d]"
                 }`}
                 style={{
                   fontSize: `${persianFontSize}px`
@@ -1809,7 +2050,9 @@ export default function App() {
                       }}
                       className={`transition-colors duration-200 rounded px-0.5 inline cursor-pointer ${
                         isHighlighted
-                          ? "bg-orange-500/20 text-orange-950 dark:text-orange-100 font-semibold"
+                          ? theme === "green"
+                            ? "bg-emerald-500/20 text-emerald-950 font-semibold"
+                            : "bg-orange-500/20 text-orange-955 dark:text-orange-100 font-semibold"
                           : "hover:bg-slate-500/10"
                       }`}
                     >
