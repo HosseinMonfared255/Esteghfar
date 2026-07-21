@@ -241,8 +241,7 @@ function StreamingIntroContent({
   sections: { title: string; content: string }[];
   theme: string;
 }) {
-  const [visibleCount, setVisibleCount] = useState<number>(0);
-  const [isCompleted, setIsCompleted] = useState<boolean>(false);
+  const hasSeenAnim = localStorage.getItem("istighfar_hasSeenIntroAnim") === "true";
 
   // Process sections into word/token arrays
   const processedSections = useRef(
@@ -256,28 +255,45 @@ function StreamingIntroContent({
     processedSections.reduce((sum, sec) => sum + sec.tokens.length, 0)
   ).current;
 
+  const [visibleCount, setVisibleCount] = useState<number>(() =>
+    hasSeenAnim ? totalTokens : 0
+  );
+  const [isCompleted, setIsCompleted] = useState<boolean>(hasSeenAnim);
+
   useEffect(() => {
+    if (hasSeenAnim) return;
+
     setVisibleCount(0);
     setIsCompleted(false);
 
-    // AI Chatbot style typewriter word-by-word streaming effect
+    // AI Chatbot style typewriter word-by-word streaming effect with moderate smoothness
     const interval = setInterval(() => {
       setVisibleCount((prev) => {
-        if (prev + 3 >= totalTokens) {
+        if (prev + 2 >= totalTokens) {
           clearInterval(interval);
           setIsCompleted(true);
+          try {
+            localStorage.setItem("istighfar_hasSeenIntroAnim", "true");
+          } catch {
+            // ignore quota/storage issues
+          }
           return totalTokens;
         }
-        return prev + 3;
+        return prev + 2;
       });
-    }, 20);
+    }, 25);
 
     return () => clearInterval(interval);
-  }, [totalTokens]);
+  }, [totalTokens, hasSeenAnim]);
 
   const handleSkip = () => {
     setVisibleCount(totalTokens);
     setIsCompleted(true);
+    try {
+      localStorage.setItem("istighfar_hasSeenIntroAnim", "true");
+    } catch {
+      // ignore
+    }
   };
 
   let tokenCursor = 0;
@@ -508,6 +524,8 @@ export default function App() {
   const [currentFocusIndex, setCurrentFocusIndex] = useState<number>(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState<boolean>(false);
+  const [headerState, setHeaderState] = useState<"full" | "translucent" | "hidden">("full");
+  const lastScrollY = useRef<number>(0);
   const focusContainerRef = useRef<HTMLDivElement>(null);
 
   // States for clause-level highlighting
@@ -581,16 +599,36 @@ export default function App() {
     localStorage.setItem("istighfar_tasbihCounts", JSON.stringify(tasbihCounts));
   }, [tasbihCounts]);
 
-  // Scroll to top detection
+  // Scroll to top & Header animation detection
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 400) {
+      const currentScrollY = window.scrollY;
+      const diff = currentScrollY - lastScrollY.current;
+
+      if (currentScrollY <= 15) {
+        setHeaderState("full");
+      } else if (diff > 5) {
+        // Scrolling DOWN
+        if (currentScrollY < 120) {
+          setHeaderState("translucent");
+        } else {
+          setHeaderState("hidden");
+        }
+      } else if (diff < -5) {
+        // Scrolling UP
+        setHeaderState("full");
+      }
+
+      if (currentScrollY > 400) {
         setShowScrollTop(true);
       } else {
         setShowScrollTop(false);
       }
+
+      lastScrollY.current = currentScrollY;
     };
-    window.addEventListener("scroll", handleScroll);
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -737,7 +775,13 @@ export default function App() {
 
       {/* Header */}
       <header
-        className={`sticky top-0 z-40 backdrop-blur-md border-b transition-colors duration-300 ${getHeaderBg()}`}
+        className={`sticky top-0 z-40 backdrop-blur-md border-b transition-all duration-500 ease-in-out transform ${getHeaderBg()} ${
+          headerState === "full"
+            ? "opacity-100 translate-y-0 pointer-events-auto"
+            : headerState === "translucent"
+            ? "opacity-50 translate-y-0 pointer-events-auto backdrop-blur-sm"
+            : "opacity-0 -translate-y-full pointer-events-none"
+        }`}
       >
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -1352,7 +1396,7 @@ export default function App() {
                   : "border-[#e5e5e5] bg-orange-50 text-orange-700 hover:bg-orange-100/50"
               }`}
             >
-              {showIntro ? "پنهان کردن" : "نمایش مقدمه"}
+              {showIntro ? "پنهان کردن" : "نمایش"}
             </button>
           </div>
 
