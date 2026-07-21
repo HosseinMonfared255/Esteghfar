@@ -29,7 +29,8 @@ import {
   Trash2,
   Calendar,
   Compass,
-  ArrowUp
+  ArrowUp,
+  X
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 // @ts-ignore
@@ -218,6 +219,14 @@ function alignSentences(arabicText: string, persianText: string): { ar: string; 
   return pairs;
 }
 
+function getBandSegments(band: PrayerBand | undefined): { ar: string; fa: string }[] {
+  if (!band) return [];
+  if (band.segments && band.segments.length > 0) {
+    return band.segments;
+  }
+  return alignSentences(band.arabic, band.persian);
+}
+
 function getFontFamily(fontName: string): string {
   if (fontName === "Scheherazade") return "'Scheherazade New', 'Amiri', serif";
   if (fontName === "Vazirmatn") return "Vazirmatn, sans-serif";
@@ -281,10 +290,15 @@ export default function App() {
     return saved ? JSON.parse(saved) : true;
   });
   const [showJumpGrid, setShowIntroJumpGrid] = useState<boolean>(false);
+  const [showThemeModal, setShowThemeModal] = useState<boolean>(false);
   const [currentFocusIndex, setCurrentFocusIndex] = useState<number>(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState<boolean>(false);
   const focusContainerRef = useRef<HTMLDivElement>(null);
+
+  // States for clause-level highlighting
+  const [hoveredSegment, setHoveredSegment] = useState<{ bandId: number; segmentIndex: number } | null>(null);
+  const [clickedSegment, setClickedSegment] = useState<{ bandId: number; segmentIndex: number } | null>(null);
 
   // Scroll to the start of the focus card when the active band changes
   useEffect(() => {
@@ -484,6 +498,7 @@ export default function App() {
 
   return (
     <div
+      onClick={() => setClickedSegment(null)}
       className={`transition-colors duration-300 min-h-screen pb-16 font-sans ${
         darkMode ? "bg-[#1a1a1a] text-slate-100" : "bg-[#fdf6e3] text-[#2d2d2d]"
       }`}
@@ -531,22 +546,24 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Dark Mode toggle */}
+            {/* Dark Mode toggle / Theme Modal */}
             <button
-              onClick={() => setDarkMode(!darkMode)}
+              onClick={() => setShowThemeModal(true)}
               className={`p-2.5 rounded-xl border transition-all hover:scale-105 ${
-                darkMode
+                showThemeModal
+                  ? "bg-orange-500 text-white border-orange-400"
+                  : darkMode
                   ? "bg-zinc-800 border-zinc-700 text-amber-400"
                   : "bg-orange-50 border-[#e5e5e5] text-orange-700"
               }`}
-              title={darkMode ? "حالت روز" : "حالت شب"}
+              title="پوسته و حالت نمایش"
             >
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
 
             {/* Jump Grid button */}
             <button
-              onClick={() => setShowIntroJumpGrid(!showJumpGrid)}
+              onClick={() => setShowIntroJumpGrid(true)}
               className={`p-2.5 rounded-xl border transition-all hover:scale-105 ${
                 showJumpGrid
                   ? "bg-orange-500 text-white border-orange-400"
@@ -561,7 +578,7 @@ export default function App() {
 
             {/* Settings button */}
             <button
-              onClick={() => setShowSettings(!showSettings)}
+              onClick={() => setShowSettings(true)}
               className={`p-2.5 rounded-xl border transition-all hover:scale-105 ${
                 showSettings
                   ? "bg-orange-500 text-white border-orange-400"
@@ -594,214 +611,369 @@ export default function App() {
       </AnimatePresence>
 
       <main className="max-w-3xl mx-auto px-4 mt-6 space-y-6">
-        {/* Navigation Grid Drawer / Modal */}
+        {/* Theme Selection Modal */}
         <AnimatePresence>
-          {showJumpGrid && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className={`p-5 rounded-2xl border shadow-xl ${
-                darkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-[#e5e5e5]"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-4 border-b pb-3 border-black/[0.05] dark:border-white/[0.05]">
-                <div className="flex items-center gap-2">
-                  <Grid className="w-4 h-4 text-orange-500" />
-                  <h3 className="font-bold text-sm">پرش سریع به بندهای استغفار</h3>
+          {showThemeModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowThemeModal(false)}
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+              />
+              
+              {/* Modal Card */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                transition={{ type: "spring", duration: 0.4 }}
+                className={`w-full max-w-sm rounded-2xl border p-5 shadow-2xl relative z-10 ${
+                  darkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-[#e5e5e5]"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-4 border-b pb-3 border-black/[0.05] dark:border-white/[0.05]">
+                  <div className="flex items-center gap-2">
+                    {darkMode ? (
+                      <Moon className="w-5 h-5 text-amber-400" />
+                    ) : (
+                      <Sun className="w-5 h-5 text-orange-500" />
+                    )}
+                    <h3 className="font-bold text-base">پوسته و حالت نمایش</h3>
+                  </div>
+                  <button
+                    onClick={() => setShowThemeModal(false)}
+                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-                <span className="text-xs text-slate-400">بند ۱ تا ۷۰</span>
-              </div>
-              <div className="grid grid-cols-7 sm:grid-cols-10 gap-2">
-                {Array.from({ length: 70 }, (_, i) => i + 1).map((num) => {
-                  const isRead = readBands.includes(num);
-                  const isBookmarked = bookmarkedBands.includes(num);
-                  return (
+
+                <div className="space-y-4">
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    حالت نمایش برنامه را با توجه به نور محیط خود انتخاب کنید تا قرائت دعا برای شما آسان‌تر شود:
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-3">
                     <button
-                      key={num}
-                      onClick={() => jumpToBand(num)}
-                      className={`py-2 rounded-xl text-xs font-semibold transition-all relative ${
-                        isRead
-                          ? "bg-orange-500/20 text-orange-700 dark:text-orange-400 border border-orange-500/30"
-                          : darkMode
-                          ? "bg-zinc-800 hover:bg-zinc-700 text-slate-300"
-                          : "bg-orange-50 hover:bg-orange-100 text-orange-800 border border-[#e5e5e5]"
+                      onClick={() => {
+                        setDarkMode(false);
+                        triggerToast("پوسته روز (کرم گرم) فعال شد");
+                      }}
+                      className={`p-4 rounded-xl border flex flex-col items-center gap-2.5 transition-all ${
+                        !darkMode
+                          ? "bg-orange-50 border-orange-400 text-orange-955 ring-2 ring-orange-500/15"
+                          : "bg-zinc-800/40 border-zinc-700/80 text-slate-300 hover:bg-zinc-800"
                       }`}
                     >
-                      {num}
-                      {isBookmarked && (
-                        <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                      )}
+                      <Sun className={`w-6 h-6 ${!darkMode ? "text-orange-500" : "text-slate-400"}`} />
+                      <span className="text-xs font-bold">پوسته روز (روشن)</span>
                     </button>
-                  );
-                })}
-              </div>
-            </motion.div>
+
+                    <button
+                      onClick={() => {
+                        setDarkMode(true);
+                        triggerToast("پوسته شب (زغالی آرام) فعال شد");
+                      }}
+                      className={`p-4 rounded-xl border flex flex-col items-center gap-2.5 transition-all ${
+                        darkMode
+                          ? "bg-zinc-800 border-orange-500/50 text-slate-100 ring-2 ring-orange-500/10"
+                          : "bg-orange-50/20 border-[#e5e5e5] text-orange-900 hover:bg-orange-50/50"
+                      }`}
+                    >
+                      <Moon className={`w-6 h-6 ${darkMode ? "text-amber-400" : "text-slate-500"}`} />
+                      <span className="text-xs font-bold">پوسته شب (تاریک)</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-5 pt-3 border-t border-black/[0.05] dark:border-white/[0.05] flex justify-end">
+                  <button
+                    onClick={() => setShowThemeModal(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-orange-500 text-white hover:bg-orange-600 transition-colors shadow-sm"
+                  >
+                    تایید و بستن
+                  </button>
+                </div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
 
-        {/* Quick Settings Panel */}
+        {/* Navigation Grid Drawer / Modal */}
         <AnimatePresence>
-          {showSettings && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className={`p-5 rounded-2xl border shadow-xl space-y-5 ${
-                darkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-[#e5e5e5]"
-              }`}
-            >
-              <div className="flex items-center justify-between border-b pb-3 border-black/[0.05] dark:border-white/[0.05]">
-                <div className="flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-orange-500" />
-                  <h3 className="font-bold text-sm">تنظیمات ظاهر و ابزارها</h3>
-                </div>
-                <button
-                  onClick={() => {
-                    setArabicFontSize(22);
-                    setPersianFontSize(15);
-                    setSelectedFont("Amiri");
-                    setShowTranslation(true);
-                    setTranslationMode("sentence");
-                    triggerToast("تنظیمات به حالت اولیه بازگشت");
-                  }}
-                  className="text-xs text-orange-500 flex items-center gap-1 hover:underline"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>بازنشانی</span>
-                </button>
-              </div>
+          {showJumpGrid && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowIntroJumpGrid(false)}
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+              />
 
-              {/* Font Sizer Controls */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-medium">
-                    <span className="flex items-center gap-1">
-                      <Type className="w-3.5 h-3.5 text-slate-400" />
-                      اندازه قلم متن عربی
-                    </span>
-                    <span className="font-semibold text-orange-600">{arabicFontSize} پیکسل</span>
+              {/* Modal Card */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                transition={{ type: "spring", duration: 0.45 }}
+                className={`w-full max-w-xl rounded-2xl border p-5 shadow-2xl relative z-10 overflow-y-auto max-h-[85vh] ${
+                  darkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-[#e5e5e5]"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-4 border-b pb-3 border-black/[0.05] dark:border-white/[0.05]">
+                  <div className="flex items-center gap-2">
+                    <Grid className="w-5 h-5 text-orange-500" />
+                    <h3 className="font-bold text-base">پرش سریع به بندهای استغفار</h3>
                   </div>
-                  <input
-                    type="range"
-                    min="16"
-                    max="34"
-                    value={arabicFontSize}
-                    onChange={(e) => setArabicFontSize(parseInt(e.target.value, 10))}
-                    className="w-full h-1.5 bg-slate-300 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
-                  />
-                  <p
-                    className="text-center font-arabic border py-1.5 px-2 rounded-lg truncate mt-1 bg-orange-500/5 dark:bg-zinc-800/40"
-                    style={{ fontSize: `${arabicFontSize}px`, fontFamily: getFontFamily(selectedFont) }}
-                  >
-                    بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-medium">
-                    <span className="flex items-center gap-1">
-                      <Type className="w-3.5 h-3.5 text-slate-400" />
-                      اندازه قلم ترجمه فارسی
-                    </span>
-                    <span className="font-semibold text-orange-600">{persianFontSize} پیکسل</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-slate-400">بند ۱ تا ۷۰</span>
+                    <button
+                      onClick={() => setShowIntroJumpGrid(false)}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                  <input
-                    type="range"
-                    min="12"
-                    max="24"
-                    value={persianFontSize}
-                    onChange={(e) => setPersianFontSize(parseInt(e.target.value, 10))}
-                    className="w-full h-1.5 bg-slate-300 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
-                  />
-                  <p
-                    className="text-center border py-1.5 px-2 rounded-lg truncate mt-1 bg-orange-500/5 dark:bg-zinc-800/40 font-sans"
-                    style={{ fontSize: `${persianFontSize}px` }}
-                  >
-                    به نام خداوند بخشنده مهربان
-                  </p>
                 </div>
-              </div>
 
-              {/* Font Family selector & Display options */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-3">
-                <div className="space-y-2">
-                  <span className="text-xs font-medium text-slate-400">قلم متن عربی</span>
-                  <div className="flex gap-2">
-                    {["Scheherazade", "Amiri", "Vazirmatn", "sans-serif"].map((font) => (
+                <div className="grid grid-cols-7 sm:grid-cols-10 gap-2 mb-4">
+                  {Array.from({ length: 70 }, (_, i) => i + 1).map((num) => {
+                    const isRead = readBands.includes(num);
+                    const isBookmarked = bookmarkedBands.includes(num);
+                    return (
                       <button
-                        key={font}
-                        onClick={() => setSelectedFont(font)}
-                        className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all border ${
-                          selectedFont === font
-                            ? "bg-orange-500 text-white border-orange-400"
+                        key={num}
+                        onClick={() => {
+                          jumpToBand(num);
+                          setShowIntroJumpGrid(false);
+                        }}
+                        className={`py-2 rounded-xl text-xs font-semibold transition-all relative ${
+                          isRead
+                            ? "bg-orange-500/20 text-orange-700 dark:text-orange-400 border border-orange-500/30"
                             : darkMode
-                            ? "bg-zinc-800 border-zinc-700 text-slate-300 hover:bg-zinc-700"
-                            : "bg-orange-50 border-[#e5e5e5] text-orange-800 hover:bg-orange-100"
+                            ? "bg-zinc-800 hover:bg-zinc-700 text-slate-300"
+                            : "bg-orange-50 hover:bg-orange-100 text-orange-800 border border-[#e5e5e5]"
                         }`}
                       >
-                        {font === "Scheherazade" ? "قلم شهرزاد" : font === "Amiri" ? "قلم امیری (نسخ)" : font === "Vazirmatn" ? "وزیرمتن" : "سیستم"}
+                        {num}
+                        {isBookmarked && (
+                          <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        )}
                       </button>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
 
-                <div className="space-y-2">
-                  <span className="text-xs font-medium text-slate-400">گزینه‌های نمایش و ترجمه</span>
-                  <div className="flex flex-wrap gap-2">
+                <div className="mt-5 pt-3 border-t border-black/[0.05] dark:border-white/[0.05] flex justify-end">
+                  <button
+                    onClick={() => setShowIntroJumpGrid(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-orange-500 text-white hover:bg-orange-600 transition-colors shadow-sm"
+                  >
+                    بستن
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Quick Settings Panel as Modal */}
+        <AnimatePresence>
+          {showSettings && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowSettings(false)}
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+              />
+
+              {/* Modal Card */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                transition={{ type: "spring", duration: 0.45 }}
+                className={`w-full max-w-xl rounded-2xl border p-5 shadow-2xl relative z-10 overflow-y-auto max-h-[90vh] space-y-5 ${
+                  darkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-[#e5e5e5]"
+                }`}
+              >
+                <div className="flex items-center justify-between border-b pb-3 border-black/[0.05] dark:border-white/[0.05]">
+                  <div className="flex items-center gap-2">
+                    <Sliders className="w-5 h-5 text-orange-500" />
+                    <h3 className="font-bold text-base">تنظیمات ظاهر و ابزارها</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setShowTranslation(!showTranslation)}
-                      className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-center gap-1.5 ${
-                        showTranslation
-                          ? "bg-orange-500 text-white border-orange-400"
-                          : darkMode
-                          ? "bg-zinc-800 border-zinc-700 text-slate-400"
-                          : "bg-orange-50 border-[#e5e5e5] text-orange-800"
-                      }`}
+                      onClick={() => {
+                        setArabicFontSize(22);
+                        setPersianFontSize(15);
+                        setSelectedFont("Amiri");
+                        setShowTranslation(true);
+                        setTranslationMode("sentence");
+                        triggerToast("تنظیمات به حالت اولیه بازگشت");
+                      }}
+                      className="text-xs text-orange-500 flex items-center gap-1 hover:underline ml-2"
                     >
-                      {showTranslation ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                      <span>نمایش ترجمه فارسی</span>
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>بازنشانی</span>
                     </button>
-
-                    {showTranslation && (
-                      <div className="flex bg-slate-100 dark:bg-zinc-800 p-0.5 rounded-xl border border-black/[0.05] dark:border-white/[0.05] flex-1 min-w-[200px]">
-                        <button
-                          onClick={() => setTranslationMode("sentence")}
-                          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
-                            translationMode === "sentence"
-                              ? "bg-orange-500 text-white shadow-sm"
-                              : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-                          }`}
-                        >
-                          جمله به جمله
-                        </button>
-                        <button
-                          onClick={() => setTranslationMode("block")}
-                          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
-                            translationMode === "block"
-                              ? "bg-orange-500 text-white shadow-sm"
-                              : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-                          }`}
-                        >
-                          بند کامل
-                        </button>
-                      </div>
-                    )}
+                    <button
+                      onClick={() => setShowSettings(false)}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-              </div>
 
-              <div className="border-t pt-4 border-black/[0.05] dark:border-white/[0.05] flex flex-wrap justify-between items-center gap-3">
-                <span className="text-xs text-slate-400">پیشرفت‌ها و تاریخچه مطالعه را می‌توانید بازنشانی کنید:</span>
-                <button
-                  onClick={handleResetProgress}
-                  className="py-1.5 px-3 rounded-xl text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 transition-all flex items-center gap-1"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>پاک کردن پیشرفت‌ها</span>
-                </button>
-              </div>
-            </motion.div>
+                {/* Font Sizer Controls */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs font-medium">
+                      <span className="flex items-center gap-1">
+                        <Type className="w-3.5 h-3.5 text-slate-400" />
+                        اندازه قلم متن عربی
+                      </span>
+                      <span className="font-semibold text-orange-600">{arabicFontSize} پیکسل</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="16"
+                      max="34"
+                      value={arabicFontSize}
+                      onChange={(e) => setArabicFontSize(parseInt(e.target.value, 10))}
+                      className="w-full h-1.5 bg-slate-300 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                    />
+                    <p
+                      className="text-center font-arabic border py-1.5 px-2 rounded-lg truncate mt-1 bg-orange-500/5 dark:bg-zinc-800/40"
+                      style={{ fontSize: `${arabicFontSize}px`, fontFamily: getFontFamily(selectedFont) }}
+                    >
+                      بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs font-medium">
+                      <span className="flex items-center gap-1">
+                        <Type className="w-3.5 h-3.5 text-slate-400" />
+                        اندازه قلم ترجمه فارسی
+                      </span>
+                      <span className="font-semibold text-orange-600">{persianFontSize} پیکسل</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="12"
+                      max="24"
+                      value={persianFontSize}
+                      onChange={(e) => setPersianFontSize(parseInt(e.target.value, 10))}
+                      className="w-full h-1.5 bg-slate-300 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                    />
+                    <p
+                      className="text-center border py-1.5 px-2 rounded-lg truncate mt-1 bg-orange-500/5 dark:bg-zinc-800/40 font-sans"
+                      style={{ fontSize: `${persianFontSize}px` }}
+                    >
+                      به نام خداوند بخشنده مهربان
+                    </p>
+                  </div>
+                </div>
+
+                {/* Font Family selector & Display options */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-3">
+                  <div className="space-y-2">
+                    <span className="text-xs font-medium text-slate-400">قلم متن عربی</span>
+                    <div className="flex gap-2">
+                      {["Scheherazade", "Amiri", "Vazirmatn", "sans-serif"].map((font) => (
+                        <button
+                          key={font}
+                          onClick={() => setSelectedFont(font)}
+                          className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all border ${
+                            selectedFont === font
+                              ? "bg-orange-500 text-white border-orange-400"
+                              : darkMode
+                              ? "bg-zinc-800 border-zinc-700 text-slate-300 hover:bg-zinc-700"
+                              : "bg-orange-50 border-[#e5e5e5] text-orange-800 hover:bg-orange-100"
+                          }`}
+                        >
+                          {font === "Scheherazade" ? "قلم شهرزاد" : font === "Amiri" ? "قلم امیری (نسخ)" : font === "Vazirmatn" ? "وزیرمتن" : "سیستم"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="text-xs font-medium text-slate-400">گزینه‌های نمایش و ترجمه</span>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => setShowTranslation(!showTranslation)}
+                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-center gap-1.5 ${
+                          showTranslation
+                            ? "bg-orange-500 text-white border-orange-400"
+                            : darkMode
+                            ? "bg-zinc-800 border-zinc-700 text-slate-400"
+                            : "bg-orange-50 border-[#e5e5e5] text-orange-800"
+                        }`}
+                      >
+                        {showTranslation ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                        <span>نمایش ترجمه فارسی</span>
+                      </button>
+
+                      {showTranslation && (
+                        <div className="flex bg-slate-100 dark:bg-zinc-800 p-0.5 rounded-xl border border-black/[0.05] dark:border-white/[0.05] flex-1 min-w-[200px]">
+                          <button
+                            onClick={() => setTranslationMode("sentence")}
+                            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+                              translationMode === "sentence"
+                                ? "bg-orange-500 text-white shadow-sm"
+                                : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                            }`}
+                          >
+                            جمله به جمله
+                          </button>
+                          <button
+                            onClick={() => setTranslationMode("block")}
+                            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+                              translationMode === "block"
+                                ? "bg-orange-500 text-white shadow-sm"
+                                : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                            }`}
+                          >
+                            بند کامل
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4 border-black/[0.05] dark:border-white/[0.05] flex flex-wrap justify-between items-center gap-3">
+                  <span className="text-xs text-slate-400">پیشرفت‌ها و تاریخچه مطالعه را می‌توانید بازنشانی کنید:</span>
+                  <button
+                    onClick={handleResetProgress}
+                    className="py-1.5 px-3 rounded-xl text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 transition-all flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>پاک کردن پیشرفت‌ها</span>
+                  </button>
+                </div>
+
+                <div className="pt-3 border-t border-black/[0.05] dark:border-white/[0.05] flex justify-end">
+                  <button
+                    onClick={() => setShowSettings(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-orange-500 text-white hover:bg-orange-600 transition-colors shadow-sm"
+                  >
+                    بستن تنظیمات
+                  </button>
+                </div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
 
@@ -1069,34 +1241,52 @@ export default function App() {
                   <div className="space-y-5">
                     {showTranslation && translationMode === "sentence" ? (
                       <div className="space-y-4">
-                        {alignSentences(band.arabic, band.persian).map((pair, idx) => (
-                          <div 
-                            key={idx} 
-                            className="pb-3 border-b last:border-0 border-dashed border-black/[0.06] dark:border-white/[0.06] space-y-2"
-                          >
-                            <p
-                              className="leading-relaxed font-arabic font-normal tracking-wide text-justify select-all"
-                              style={{
-                                fontSize: `${arabicFontSize}px`,
-                                fontFamily: getFontFamily(selectedFont),
-                                lineHeight: "1.8"
+                        {getBandSegments(band).map((pair, idx) => {
+                          const isHighlighted = (hoveredSegment?.bandId === band.id && hoveredSegment?.segmentIndex === idx) ||
+                                                (clickedSegment?.bandId === band.id && clickedSegment?.segmentIndex === idx);
+                          return (
+                            <div 
+                              key={idx} 
+                              onMouseEnter={() => setHoveredSegment({ bandId: band.id, segmentIndex: idx })}
+                              onMouseLeave={() => setHoveredSegment(null)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setClickedSegment(
+                                  clickedSegment?.bandId === band.id && clickedSegment?.segmentIndex === idx
+                                    ? null
+                                    : { bandId: band.id, segmentIndex: idx }
+                                );
                               }}
-                            >
-                              {pair.ar}
-                            </p>
-                            <p
-                              className={`text-justify ${
-                                darkMode ? "text-slate-300" : "text-[#5d5d5d]"
+                              className={`pb-3 border-b last:border-0 border-dashed border-black/[0.06] dark:border-white/[0.06] space-y-2 cursor-pointer transition-all duration-200 rounded-xl px-3 py-1.5 -mx-3 ${
+                                isHighlighted 
+                                  ? "bg-orange-500/10 border-orange-500/20" 
+                                  : "hover:bg-slate-500/5"
                               }`}
-                              style={{
-                                fontSize: `${persianFontSize}px`,
-                                lineHeight: "1.7"
-                              }}
                             >
-                              {pair.fa}
-                            </p>
-                          </div>
-                        ))}
+                              <p
+                                className="leading-relaxed font-arabic font-normal tracking-wide text-justify select-all"
+                                style={{
+                                  fontSize: `${arabicFontSize}px`,
+                                  fontFamily: getFontFamily(selectedFont),
+                                  lineHeight: "1.8"
+                                }}
+                              >
+                                {pair.ar}
+                              </p>
+                              <p
+                                className={`text-justify ${
+                                  darkMode ? "text-slate-300" : "text-[#5d5d5d]"
+                                }`}
+                                style={{
+                                  fontSize: `${persianFontSize}px`,
+                                  lineHeight: "1.7"
+                                }}
+                              >
+                                {pair.fa}
+                              </p>
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
                       <>
@@ -1110,7 +1300,32 @@ export default function App() {
                               lineHeight: "1.8"
                             }}
                           >
-                            {band.arabic}
+                            {getBandSegments(band).map((pair, idx) => {
+                              const isHighlighted = (hoveredSegment?.bandId === band.id && hoveredSegment?.segmentIndex === idx) ||
+                                                    (clickedSegment?.bandId === band.id && clickedSegment?.segmentIndex === idx);
+                              return (
+                                <span
+                                  key={idx}
+                                  onMouseEnter={() => setHoveredSegment({ bandId: band.id, segmentIndex: idx })}
+                                  onMouseLeave={() => setHoveredSegment(null)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setClickedSegment(
+                                      clickedSegment?.bandId === band.id && clickedSegment?.segmentIndex === idx
+                                        ? null
+                                        : { bandId: band.id, segmentIndex: idx }
+                                    );
+                                  }}
+                                  className={`transition-colors duration-200 rounded px-0.5 inline cursor-pointer ${
+                                    isHighlighted
+                                      ? "bg-orange-500/20 text-orange-600 dark:text-orange-400 font-semibold"
+                                      : "hover:bg-slate-500/10"
+                                  }`}
+                                >
+                                  {pair.ar}{" "}
+                                </span>
+                              );
+                            })}
                           </p>
                         </div>
 
@@ -1126,7 +1341,34 @@ export default function App() {
                             }}
                           >
                             <span className="text-orange-500 font-bold block text-xs mb-1.5">ترجمه فارسی:</span>
-                            <p>{band.persian}</p>
+                            <p className="leading-relaxed text-justify">
+                              {getBandSegments(band).map((pair, idx) => {
+                                const isHighlighted = (hoveredSegment?.bandId === band.id && hoveredSegment?.segmentIndex === idx) ||
+                                                      (clickedSegment?.bandId === band.id && clickedSegment?.segmentIndex === idx);
+                                return (
+                                  <span
+                                    key={idx}
+                                    onMouseEnter={() => setHoveredSegment({ bandId: band.id, segmentIndex: idx })}
+                                    onMouseLeave={() => setHoveredSegment(null)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setClickedSegment(
+                                        clickedSegment?.bandId === band.id && clickedSegment?.segmentIndex === idx
+                                          ? null
+                                          : { bandId: band.id, segmentIndex: idx }
+                                      );
+                                    }}
+                                    className={`transition-colors duration-200 rounded px-0.5 inline cursor-pointer ${
+                                      isHighlighted
+                                        ? "bg-orange-500/20 text-orange-950 dark:text-orange-100 font-semibold"
+                                        : "hover:bg-slate-500/10"
+                                    }`}
+                                  >
+                                    {pair.fa}{" "}
+                                  </span>
+                                );
+                              })}
+                            </p>
                           </div>
                         )}
                       </>
@@ -1273,37 +1515,53 @@ export default function App() {
                   <div className="space-y-6">
                     {showTranslation && translationMode === "sentence" ? (
                       <div className="space-y-5">
-                        {alignSentences(
-                          filteredBands[currentFocusIndex]?.arabic || "",
-                          filteredBands[currentFocusIndex]?.persian || ""
-                        ).map((pair, idx) => (
-                          <div 
-                            key={idx} 
-                            className="pb-4 border-b last:border-0 border-dashed border-black/[0.06] dark:border-white/[0.06] space-y-2.5"
-                          >
-                            <p
-                              className="leading-relaxed font-arabic font-normal tracking-wide text-justify select-all"
-                              style={{
-                                fontSize: `${arabicFontSize + 2}px`,
-                                fontFamily: getFontFamily(selectedFont),
-                                lineHeight: "1.9"
+                        {getBandSegments(filteredBands[currentFocusIndex]).map((pair, idx) => {
+                          const activeBandId = filteredBands[currentFocusIndex]?.id;
+                          const isHighlighted = (hoveredSegment?.bandId === activeBandId && hoveredSegment?.segmentIndex === idx) ||
+                                                (clickedSegment?.bandId === activeBandId && clickedSegment?.segmentIndex === idx);
+                          return (
+                            <div 
+                              key={idx} 
+                              onMouseEnter={() => setHoveredSegment({ bandId: activeBandId, segmentIndex: idx })}
+                              onMouseLeave={() => setHoveredSegment(null)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setClickedSegment(
+                                  clickedSegment?.bandId === activeBandId && clickedSegment?.segmentIndex === idx
+                                    ? null
+                                    : { bandId: activeBandId, segmentIndex: idx }
+                                );
                               }}
-                            >
-                              {pair.ar}
-                            </p>
-                            <p
-                              className={`text-justify ${
-                                darkMode ? "text-slate-300" : "text-[#5d5d5d]"
+                              className={`pb-4 border-b last:border-0 border-dashed border-black/[0.06] dark:border-white/[0.06] space-y-2.5 cursor-pointer transition-all duration-200 rounded-2xl px-4 py-2 -mx-4 ${
+                                isHighlighted 
+                                  ? "bg-orange-500/10 border-orange-500/20" 
+                                  : "hover:bg-slate-500/5"
                               }`}
-                              style={{
-                                fontSize: `${persianFontSize + 1}px`,
-                                lineHeight: "1.8"
-                              }}
                             >
-                              {pair.fa}
-                            </p>
-                          </div>
-                        ))}
+                              <p
+                                className="leading-relaxed font-arabic font-normal tracking-wide text-justify select-all"
+                                style={{
+                                  fontSize: `${arabicFontSize + 2}px`,
+                                  fontFamily: getFontFamily(selectedFont),
+                                  lineHeight: "1.9"
+                                }}
+                              >
+                                {pair.ar}
+                              </p>
+                              <p
+                                className={`text-justify ${
+                                  darkMode ? "text-slate-300" : "text-[#5d5d5d]"
+                                }`}
+                                style={{
+                                  fontSize: `${persianFontSize + 1}px`,
+                                  lineHeight: "1.8"
+                                }}
+                              >
+                                {pair.fa}
+                              </p>
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
                       <>
@@ -1317,7 +1575,33 @@ export default function App() {
                               lineHeight: "1.9"
                             }}
                           >
-                            {filteredBands[currentFocusIndex]?.arabic}
+                            {getBandSegments(filteredBands[currentFocusIndex]).map((pair, idx) => {
+                              const activeBandId = filteredBands[currentFocusIndex]?.id;
+                              const isHighlighted = (hoveredSegment?.bandId === activeBandId && hoveredSegment?.segmentIndex === idx) ||
+                                                    (clickedSegment?.bandId === activeBandId && clickedSegment?.segmentIndex === idx);
+                              return (
+                                <span
+                                  key={idx}
+                                  onMouseEnter={() => setHoveredSegment({ bandId: activeBandId, segmentIndex: idx })}
+                                  onMouseLeave={() => setHoveredSegment(null)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setClickedSegment(
+                                      clickedSegment?.bandId === activeBandId && clickedSegment?.segmentIndex === idx
+                                        ? null
+                                        : { activeBandId, segmentIndex: idx }
+                                    );
+                                  }}
+                                  className={`transition-colors duration-200 rounded px-0.5 inline cursor-pointer ${
+                                    isHighlighted
+                                      ? "bg-orange-500/20 text-orange-600 dark:text-orange-400 font-semibold"
+                                      : "hover:bg-slate-500/10"
+                                  }`}
+                                >
+                                  {pair.ar}{" "}
+                                </span>
+                              );
+                            })}
                           </p>
                         </div>
 
@@ -1333,7 +1617,35 @@ export default function App() {
                             }}
                           >
                             <span className="text-orange-500 font-bold block text-sm mb-2">ترجمه فارسی:</span>
-                            <p>{filteredBands[currentFocusIndex]?.persian}</p>
+                            <p className="leading-relaxed text-justify">
+                              {getBandSegments(filteredBands[currentFocusIndex]).map((pair, idx) => {
+                                const activeBandId = filteredBands[currentFocusIndex]?.id;
+                                const isHighlighted = (hoveredSegment?.bandId === activeBandId && hoveredSegment?.segmentIndex === idx) ||
+                                                      (clickedSegment?.bandId === activeBandId && clickedSegment?.segmentIndex === idx);
+                                return (
+                                  <span
+                                    key={idx}
+                                    onMouseEnter={() => setHoveredSegment({ bandId: activeBandId, segmentIndex: idx })}
+                                    onMouseLeave={() => setHoveredSegment(null)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setClickedSegment(
+                                        clickedSegment?.bandId === activeBandId && clickedSegment?.segmentIndex === idx
+                                          ? null
+                                          : { bandId: activeBandId, segmentIndex: idx }
+                                      );
+                                    }}
+                                    className={`transition-colors duration-200 rounded px-0.5 inline cursor-pointer ${
+                                      isHighlighted
+                                        ? "bg-orange-500/20 text-orange-950 dark:text-orange-100 font-semibold"
+                                        : "hover:bg-slate-500/10"
+                                    }`}
+                                  >
+                                    {pair.fa}{" "}
+                                  </span>
+                                );
+                              })}
+                            </p>
                           </div>
                         )}
                       </>
@@ -1442,7 +1754,32 @@ export default function App() {
                 lineHeight: "1.8"
               }}
             >
-              {concludingText.arabic}
+              {alignSentences(concludingText.arabic, concludingText.persian).map((pair, idx) => {
+                const isHighlighted = (hoveredSegment?.bandId === 10000 && hoveredSegment?.segmentIndex === idx) ||
+                                      (clickedSegment?.bandId === 10000 && clickedSegment?.segmentIndex === idx);
+                return (
+                  <span
+                    key={idx}
+                    onMouseEnter={() => setHoveredSegment({ bandId: 10000, segmentIndex: idx })}
+                    onMouseLeave={() => setHoveredSegment(null)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setClickedSegment(
+                        clickedSegment?.bandId === 10000 && clickedSegment?.segmentIndex === idx
+                          ? null
+                          : { bandId: 10000, segmentIndex: idx }
+                      );
+                    }}
+                    className={`transition-colors duration-200 rounded px-0.5 inline cursor-pointer ${
+                      isHighlighted
+                        ? "bg-orange-500/20 text-orange-600 dark:text-orange-400 font-semibold"
+                        : "hover:bg-slate-500/10"
+                    }`}
+                  >
+                    {pair.ar}{" "}
+                  </span>
+                );
+              })}
             </p>
 
             {showTranslation && (
@@ -1454,7 +1791,32 @@ export default function App() {
                   fontSize: `${persianFontSize}px`
                 }}
               >
-                {concludingText.persian}
+                {alignSentences(concludingText.arabic, concludingText.persian).map((pair, idx) => {
+                  const isHighlighted = (hoveredSegment?.bandId === 10000 && hoveredSegment?.segmentIndex === idx) ||
+                                        (clickedSegment?.bandId === 10000 && clickedSegment?.segmentIndex === idx);
+                  return (
+                    <span
+                      key={idx}
+                      onMouseEnter={() => setHoveredSegment({ bandId: 10000, segmentIndex: idx })}
+                      onMouseLeave={() => setHoveredSegment(null)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setClickedSegment(
+                          clickedSegment?.bandId === 10000 && clickedSegment?.segmentIndex === idx
+                            ? null
+                            : { bandId: 10000, segmentIndex: idx }
+                        );
+                      }}
+                      className={`transition-colors duration-200 rounded px-0.5 inline cursor-pointer ${
+                        isHighlighted
+                          ? "bg-orange-500/20 text-orange-950 dark:text-orange-100 font-semibold"
+                          : "hover:bg-slate-500/10"
+                      }`}
+                    >
+                      {pair.fa}{" "}
+                    </span>
+                  );
+                })}
               </p>
             )}
           </div>
