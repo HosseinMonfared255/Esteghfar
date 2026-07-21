@@ -35,6 +35,8 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 // @ts-ignore
 import logoIcon from "./assets/images/mafatih_logo_1784452846336.jpg";
+// @ts-ignore
+import bismillahImg from "./assets/images/bismillah_emerald_splash_1784660353067.jpg";
 import { prayerBands, introText, concludingText, PrayerBand } from "./data/prayers";
 
 // --- Highly Optimized Monotonic Alignment Engine ---
@@ -512,6 +514,16 @@ export default function App() {
   });
 
   // --- UI/Interaction States ---
+  const [showSplash, setShowSplash] = useState<boolean>(() => {
+    const seen = sessionStorage.getItem("istighfar_seen_splash");
+    return !seen;
+  });
+
+  const handleCloseSplash = () => {
+    setShowSplash(false);
+    sessionStorage.setItem("istighfar_seen_splash", "true");
+  };
+
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [filterMode, setFilterMode] = useState<"all" | "bookmarked" | "read" | "unread">("all");
   const [showSettings, setShowSettings] = useState<boolean>(false);
@@ -756,6 +768,62 @@ export default function App() {
       className={`transition-colors duration-300 min-h-screen pb-16 font-sans ${getPageBg()}`}
       dir="rtl"
     >
+      {/* Temporary Bismillah Splash Screen */}
+      <AnimatePresence>
+        {showSplash && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.5 } }}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 md:p-6 overflow-hidden bg-gradient-to-br from-[#092218] via-[#103a29] to-[#051810] text-slate-100"
+          >
+            {/* Ambient Background Lights for Seamless Emerald & White Marble Blend */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] bg-emerald-400/20 rounded-full blur-[150px] pointer-events-none" />
+            <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-white/12 rounded-full blur-[110px] pointer-events-none" />
+            <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-amber-400/10 rounded-full blur-[130px] pointer-events-none" />
+
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="relative max-w-2xl w-full flex flex-col items-center text-center z-10 space-y-6"
+            >
+              {/* Bismillah Image Container with Seamless Blend Frame */}
+              <div className="relative w-full rounded-2xl md:rounded-3xl overflow-hidden shadow-[0_0_80px_rgba(16,185,129,0.35)] border border-emerald-400/35 group bg-[#0d2a1f]">
+                <img
+                  src={bismillahImg}
+                  alt="بسم الله الرحمن الرحیم"
+                  className="w-full h-auto object-contain rounded-2xl md:rounded-3xl transition-transform duration-700 group-hover:scale-[1.01]"
+                  referrerPolicy="no-referrer"
+                />
+                {/* Subtle vignette inner ring for seamless edge transition */}
+                <div className="absolute inset-0 ring-1 ring-inset ring-amber-300/30 rounded-2xl md:rounded-3xl pointer-events-none bg-gradient-to-t from-[#061810]/40 via-transparent to-[#061810]/20" />
+              </div>
+
+              {/* Title & Entrance Action */}
+              <div className="space-y-2 px-2">
+                <h2 className="font-bold text-lg md:text-xl text-emerald-100 tracking-tight">
+                  استغفار ۷۰ بندی حضرت امیرالمؤمنین علی (علیه‌السلام)
+                </h2>
+                <p className="text-xs md:text-sm text-emerald-200/80 font-medium">
+                  قرائت با تدبر، آگاهی و خشوع
+                </p>
+              </div>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleCloseSplash}
+                className="mt-2 px-8 py-3.5 rounded-full bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-amber-100 font-bold text-sm shadow-xl shadow-emerald-950/80 border border-amber-300/40 flex items-center gap-2.5 transition-all cursor-pointer"
+              >
+                <span>ورود به برنامه</span>
+                <ChevronLeft className="w-4 h-4" />
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Toast Notification */}
       <AnimatePresence>
         {toastMessage && (
@@ -784,8 +852,12 @@ export default function App() {
         }`}
       >
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="overflow-hidden w-11 h-11 rounded-xl flex items-center justify-center bg-transparent">
+          <div
+            onClick={() => setShowSplash(true)}
+            className="flex items-center gap-2 cursor-pointer group"
+            title="نمایش صفحه بسم الله الرحمن الرحیم"
+          >
+            <div className="overflow-hidden w-11 h-11 rounded-xl flex items-center justify-center bg-transparent transition-transform group-hover:scale-105">
               <img
                 src={logoIcon}
                 alt="لوگوی مفاتیح الجنان"
@@ -794,7 +866,7 @@ export default function App() {
               />
             </div>
             <div>
-              <h1 className="font-bold text-base md:text-lg tracking-tight">استغفار ۷۰ بندی</h1>
+              <h1 className="font-bold text-base md:text-lg tracking-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">استغفار ۷۰ بندی</h1>
               <p className={`text-[10px] md:text-xs ${theme === "dark" ? "text-slate-400" : theme === "green" ? "text-emerald-850" : "text-orange-800/80"}`}>
                 امیرالمؤمنین حضرت علی علیه السلام
               </p>
