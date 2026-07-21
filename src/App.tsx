@@ -234,6 +234,122 @@ function getFontFamily(fontName: string): string {
   return "Amiri, serif";
 }
 
+function StreamingIntroContent({
+  sections,
+  theme
+}: {
+  sections: { title: string; content: string }[];
+  theme: string;
+}) {
+  const [visibleCount, setVisibleCount] = useState<number>(0);
+  const [isCompleted, setIsCompleted] = useState<boolean>(false);
+
+  // Process sections into word/token arrays
+  const processedSections = useRef(
+    sections.map((sec) => ({
+      title: sec.title,
+      tokens: sec.content.split(/(\s+)/)
+    }))
+  ).current;
+
+  const totalTokens = useRef(
+    processedSections.reduce((sum, sec) => sum + sec.tokens.length, 0)
+  ).current;
+
+  useEffect(() => {
+    setVisibleCount(0);
+    setIsCompleted(false);
+
+    // AI Chatbot style typewriter word-by-word streaming effect
+    const interval = setInterval(() => {
+      setVisibleCount((prev) => {
+        if (prev + 3 >= totalTokens) {
+          clearInterval(interval);
+          setIsCompleted(true);
+          return totalTokens;
+        }
+        return prev + 3;
+      });
+    }, 20);
+
+    return () => clearInterval(interval);
+  }, [totalTokens]);
+
+  const handleSkip = () => {
+    setVisibleCount(totalTokens);
+    setIsCompleted(true);
+  };
+
+  let tokenCursor = 0;
+
+  return (
+    <div className="space-y-4">
+      {!isCompleted && (
+        <div className="flex justify-end">
+          <button
+            onClick={handleSkip}
+            className={`text-[10px] px-2 py-0.5 rounded-md border font-medium transition-all ${
+              theme === "green"
+                ? "bg-emerald-100/80 border-emerald-300 text-emerald-900 hover:bg-emerald-200"
+                : theme === "dark"
+                ? "bg-zinc-800 border-zinc-700 text-slate-300 hover:bg-zinc-700"
+                : "bg-orange-100/80 border-orange-300 text-orange-900 hover:bg-orange-200"
+            }`}
+          >
+            نمایش کامل (بدون انیمیشن)
+          </button>
+        </div>
+      )}
+
+      {processedSections.map((sec, idx) => {
+        const secStart = tokenCursor;
+        const secTokenCount = sec.tokens.length;
+        tokenCursor += secTokenCount;
+
+        if (visibleCount < secStart) {
+          return null;
+        }
+
+        const visibleTokensInSec = Math.min(
+          secTokenCount,
+          Math.max(0, visibleCount - secStart)
+        );
+
+        const currentText = sec.tokens.slice(0, visibleTokensInSec).join("");
+        const isSectionActive =
+          visibleCount >= secStart && visibleCount < secStart + secTokenCount;
+
+        return (
+          <div key={idx} className="space-y-2">
+            <h4
+              className={`font-bold text-xs flex items-center gap-1.5 ${
+                theme === "green" ? "text-emerald-700" : "text-orange-500"
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  theme === "green" ? "bg-emerald-600" : "bg-orange-500"
+                }`}
+              ></span>
+              {sec.title}
+            </h4>
+            <p
+              className={`text-xs leading-relaxed text-justify whitespace-pre-line ${
+                theme === "dark" ? "text-slate-300" : "text-[#4d4d4d]"
+              }`}
+            >
+              {currentText}
+              {isSectionActive && !isCompleted && (
+                <span className="inline-block w-1.5 h-3.5 bg-emerald-600 dark:bg-amber-400 mr-0.5 animate-pulse align-middle rounded-sm" />
+              )}
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function App() {
   // --- Persisted States via LocalStorage ---
   const [theme, setTheme] = useState<"cream" | "dark" | "green">(() => {
@@ -385,7 +501,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showIntro, setShowIntro] = useState<boolean>(() => {
     const saved = localStorage.getItem("istighfar_showIntro");
-    return saved ? JSON.parse(saved) : true;
+    return saved ? JSON.parse(saved) : false;
   });
   const [showJumpGrid, setShowIntroJumpGrid] = useState<boolean>(false);
   const [showThemeModal, setShowThemeModal] = useState<boolean>(false);
@@ -1246,25 +1362,9 @@ export default function App() {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden mt-4 pt-4 border-t border-black/[0.05] dark:border-white/[0.05] space-y-4"
+                className="overflow-hidden mt-4 pt-4 border-t border-black/[0.05] dark:border-white/[0.05]"
               >
-                {introText.sections.map((sec, idx) => (
-                  <div key={idx} className="space-y-2">
-                    <h4 className={`font-bold text-xs flex items-center gap-1.5 ${
-                      theme === "green" ? "text-emerald-700" : "text-orange-500"
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${
-                        theme === "green" ? "bg-emerald-600" : "bg-orange-500"
-                      }`}></span>
-                      {sec.title}
-                    </h4>
-                    <p className={`text-xs leading-relaxed text-justify whitespace-pre-line ${
-                      theme === "dark" ? "text-slate-300" : "text-[#4d4d4d]"
-                    }`}>
-                      {sec.content}
-                    </p>
-                  </div>
-                ))}
+                <StreamingIntroContent sections={introText.sections} theme={theme} />
               </motion.div>
             )}
           </AnimatePresence>
