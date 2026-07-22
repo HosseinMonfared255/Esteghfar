@@ -236,6 +236,172 @@ function getFontFamily(fontName: string): string {
   return "Amiri, serif";
 }
 
+function toPersianDigits(input: string | number): string {
+  if (input === undefined || input === null) return "";
+  const enToFa: Record<string, string> = {
+    "0": "۰", "1": "۱", "2": "۲", "3": "۳", "4": "۴",
+    "5": "۵", "6": "۶", "7": "۷", "8": "۸", "9": "۹"
+  };
+  return String(input).replace(/[0-9]/g, (w) => enToFa[w] || w);
+}
+
+function TransparentStarLogo({
+  src,
+  alt,
+  className
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+}) {
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = src;
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        ctx.drawImage(img, 0, 0);
+        const imgData = ctx.getImageData(0, 0, img.width, img.height);
+        const data = imgData.data;
+        const w = img.width;
+        const h = img.height;
+
+        const visited = new Uint8Array(w * h);
+        const queue: number[] = [];
+
+        // Push all outer border pixels to flood fill queue
+        for (let x = 0; x < w; x++) {
+          queue.push(x, 0);
+          queue.push(x, h - 1);
+        }
+        for (let y = 0; y < h; y++) {
+          queue.push(0, y);
+          queue.push(w - 1, y);
+        }
+
+        while (queue.length > 0) {
+          const y = queue.pop()!;
+          const x = queue.pop()!;
+          const idx = y * w + x;
+
+          if (visited[idx]) continue;
+          visited[idx] = 1;
+
+          const pixelIdx = idx * 4;
+          const r = data[pixelIdx];
+          const g = data[pixelIdx + 1];
+          const b = data[pixelIdx + 2];
+
+          // Identify background pixel (outer dark corners or outer white/cream frame)
+          const isDark = r < 85 && g < 85 && b < 85;
+          const isWhiteOrCream = r > 185 && g > 185 && b > 175 && (g - r < 35 || g - b < 35);
+
+          if (isDark || isWhiteOrCream) {
+            data[pixelIdx + 3] = 0; // make pixel transparent
+
+            if (x > 0) queue.push(x - 1, y);
+            if (x < w - 1) queue.push(x + 1, y);
+            if (y > 0) queue.push(x, y - 1);
+            if (y < h - 1) queue.push(x, y + 1);
+          }
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+        if (isMounted) {
+          setDataUrl(canvas.toDataURL("image/png"));
+        }
+      } catch (e) {
+        console.error("Error processing star logo transparent background", e);
+      }
+    };
+    return () => {
+      isMounted = false;
+    };
+  }, [src]);
+
+  return (
+    <img
+      src={dataUrl || src}
+      alt={alt}
+      className={className}
+      referrerPolicy="no-referrer"
+    />
+  );
+}
+
+function SplashTypewriterText({
+  title,
+  subtitle
+}: {
+  title: string;
+  subtitle: string;
+}) {
+  const [displayedTitle, setDisplayedTitle] = useState("");
+  const [displayedSubtitle, setDisplayedSubtitle] = useState("");
+  const [isTitleDone, setIsTitleDone] = useState(false);
+  const [isSubtitleDone, setIsSubtitleDone] = useState(false);
+
+  useEffect(() => {
+    let titleIdx = 0;
+    let subtitleIdx = 0;
+
+    setDisplayedTitle("");
+    setDisplayedSubtitle("");
+    setIsTitleDone(false);
+    setIsSubtitleDone(false);
+
+    const titleInterval = setInterval(() => {
+      if (titleIdx < title.length) {
+        titleIdx++;
+        setDisplayedTitle(title.slice(0, titleIdx));
+      } else {
+        clearInterval(titleInterval);
+        setIsTitleDone(true);
+
+        const subtitleInterval = setInterval(() => {
+          if (subtitleIdx < subtitle.length) {
+            subtitleIdx++;
+            setDisplayedSubtitle(subtitle.slice(0, subtitleIdx));
+          } else {
+            clearInterval(subtitleInterval);
+            setIsSubtitleDone(true);
+          }
+        }, 40);
+      }
+    }, 45);
+
+    return () => {
+      clearInterval(titleInterval);
+    };
+  }, [title, subtitle]);
+
+  return (
+    <div className="space-y-2 px-2 min-h-[64px] flex flex-col justify-center items-center">
+      <h2 className="font-bold text-lg md:text-xl text-emerald-100 tracking-tight flex items-center justify-center gap-1">
+        <span>{displayedTitle}</span>
+        {!isTitleDone && (
+          <span className="inline-block w-1.5 h-5 bg-amber-300 animate-pulse rounded-sm" />
+        )}
+      </h2>
+      <p className="text-xs md:text-sm text-emerald-200/80 font-medium flex items-center justify-center gap-1">
+        <span>{displayedSubtitle}</span>
+        {isTitleDone && !isSubtitleDone && (
+          <span className="inline-block w-1 h-3.5 bg-amber-200 animate-pulse rounded-sm" />
+        )}
+      </p>
+    </div>
+  );
+}
+
 function StreamingIntroContent({
   sections,
   theme
@@ -302,23 +468,6 @@ function StreamingIntroContent({
 
   return (
     <div className="space-y-4">
-      {!isCompleted && (
-        <div className="flex justify-end">
-          <button
-            onClick={handleSkip}
-            className={`text-[10px] px-2 py-0.5 rounded-md border font-medium transition-all ${
-              theme === "green"
-                ? "bg-emerald-100/80 border-emerald-300 text-emerald-900 hover:bg-emerald-200"
-                : theme === "dark"
-                ? "bg-zinc-800 border-zinc-700 text-slate-300 hover:bg-zinc-700"
-                : "bg-orange-100/80 border-orange-300 text-orange-900 hover:bg-orange-200"
-            }`}
-          >
-            نمایش کامل (بدون انیمیشن)
-          </button>
-        </div>
-      )}
-
       {processedSections.map((sec, idx) => {
         const secStart = tokenCursor;
         const secTokenCount = sec.tokens.length;
@@ -349,14 +498,14 @@ function StreamingIntroContent({
                   theme === "green" ? "bg-emerald-600" : "bg-orange-500"
                 }`}
               ></span>
-              {sec.title}
+              {toPersianDigits(sec.title)}
             </h4>
             <p
               className={`text-xs leading-relaxed text-justify whitespace-pre-line ${
                 theme === "dark" ? "text-slate-300" : "text-[#4d4d4d]"
               }`}
             >
-              {currentText}
+              {toPersianDigits(currentText)}
               {isSectionActive && !isCompleted && (
                 <span className="inline-block w-1.5 h-3.5 bg-emerald-600 dark:bg-amber-400 mr-0.5 animate-pulse align-middle rounded-sm" />
               )}
@@ -522,6 +671,11 @@ export default function App() {
   const handleCloseSplash = () => {
     setShowSplash(false);
     sessionStorage.setItem("istighfar_seen_splash", "true");
+    setHeaderState("full");
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+    setTimeout(() => {
+      window.scrollTo(0, 0);
+    }, 50);
   };
 
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -544,15 +698,20 @@ export default function App() {
   const [hoveredSegment, setHoveredSegment] = useState<{ bandId: number; segmentIndex: number } | null>(null);
   const [clickedSegment, setClickedSegment] = useState<{ bandId: number; segmentIndex: number } | null>(null);
 
-  // Scroll to the start of the focus card when the active band changes
+  // Scroll to the start of the focus card when the active band changes during navigation
+  const isFirstRender = useRef(true);
   useEffect(() => {
-    if (viewMode === "focus" && focusContainerRef.current) {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (viewMode === "focus" && focusContainerRef.current && !showSplash) {
       const timer = setTimeout(() => {
         focusContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 50);
       return () => clearTimeout(timer);
     }
-  }, [currentFocusIndex, viewMode]);
+  }, [currentFocusIndex]);
 
   // Tasbih counter for selected band
   const [tasbihCounts, setTasbihCounter] = useState<Record<number, number>>(() => {
@@ -800,25 +959,27 @@ export default function App() {
                 <div className="absolute inset-0 ring-1 ring-inset ring-amber-300/30 rounded-2xl md:rounded-3xl pointer-events-none bg-gradient-to-t from-[#061810]/40 via-transparent to-[#061810]/20" />
               </div>
 
-              {/* Title & Entrance Action */}
-              <div className="space-y-2 px-2">
-                <h2 className="font-bold text-lg md:text-xl text-emerald-100 tracking-tight">
-                  استغفار ۷۰ بندی حضرت امیرالمؤمنین علی (علیه‌السلام)
-                </h2>
-                <p className="text-xs md:text-sm text-emerald-200/80 font-medium">
-                  قرائت با تدبر، آگاهی و خشوع
-                </p>
-              </div>
+              {/* Title & Entrance Action with Typewriter Animation */}
+              <SplashTypewriterText
+                title="استغفار ۷۰ بندی حضرت امیرالمؤمنین علی (علیه‌السلام)"
+                subtitle="قرائت با تدبر، آگاهی و خشوع"
+              />
 
-              <motion.button
+              <motion.div
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={handleCloseSplash}
-                className="mt-2 px-8 py-3.5 rounded-full bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-amber-100 font-bold text-sm shadow-xl shadow-emerald-950/80 border border-amber-300/40 flex items-center gap-2.5 transition-all cursor-pointer"
+                className="relative mt-2 p-[2px] rounded-full overflow-hidden inline-flex items-center justify-center shadow-xl shadow-emerald-950/80 cursor-pointer group"
               >
-                <span>ورود به برنامه</span>
-                <ChevronLeft className="w-4 h-4" />
-              </motion.button>
+                {/* Rotating Conic Gradient Border */}
+                <div className="absolute inset-[-250%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0_180deg,#10b981_240deg,#34d399_280deg,#fbbf24_320deg,#10b981_360deg)] opacity-90" />
+
+                {/* Inner Button Body */}
+                <div className="relative px-8 py-3.5 rounded-full bg-gradient-to-r from-[#0d3d2c] via-[#0f4b36] to-[#0b3325] group-hover:from-[#114b37] group-hover:to-[#0f4231] text-amber-100 font-bold text-sm flex items-center gap-2.5 transition-all z-10 border border-emerald-400/20">
+                  <span>ورود به برنامه</span>
+                  <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1 text-amber-300" />
+                </div>
+              </motion.div>
             </motion.div>
           </motion.div>
         )}
@@ -857,12 +1018,11 @@ export default function App() {
             className="flex items-center gap-2 cursor-pointer group"
             title="نمایش صفحه بسم الله الرحمن الرحیم"
           >
-            <div className="overflow-hidden w-11 h-11 rounded-xl flex items-center justify-center bg-transparent transition-transform group-hover:scale-105">
-              <img
+            <div className="relative w-14 h-14 md:w-16 md:h-16 flex items-center justify-center transition-transform group-hover:scale-105">
+              <TransparentStarLogo
                 src={logoIcon}
                 alt="لوگوی مفاتیح الجنان"
-                className="w-full h-full object-cover scale-[1.35]"
-                referrerPolicy="no-referrer"
+                className="w-full h-full object-contain"
               />
             </div>
             <div>
@@ -1106,7 +1266,7 @@ export default function App() {
                     <h3 className="font-bold text-base">پرش سریع به بندهای استغفار</h3>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-slate-400">بند ۱ تا ۷۰</span>
+                    <span className="text-xs text-slate-400">بند {toPersianDigits(1)} تا {toPersianDigits(70)}</span>
                     <button
                       onClick={() => setShowIntroJumpGrid(false)}
                       className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
@@ -1139,7 +1299,7 @@ export default function App() {
                             : "bg-orange-50 hover:bg-orange-100 text-orange-800 border border-[#e5e5e5]"
                         }`}
                       >
-                        {num}
+                        {toPersianDigits(num)}
                         {isBookmarked && (
                           <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                         )}
@@ -1276,7 +1436,7 @@ export default function App() {
                         <Type className="w-3.5 h-3.5 text-slate-400" />
                         اندازه قلم متن عربی
                       </span>
-                      <span className={`font-semibold ${theme === "green" ? "text-emerald-700" : "text-orange-600"}`}>{arabicFontSize} پیکسل</span>
+                      <span className={`font-semibold ${theme === "green" ? "text-emerald-700" : "text-orange-600"}`}>{toPersianDigits(arabicFontSize)} پیکسل</span>
                     </div>
                     <input
                       type="range"
@@ -1308,7 +1468,7 @@ export default function App() {
                         <Type className="w-3.5 h-3.5 text-slate-400" />
                         اندازه قلم ترجمه فارسی
                       </span>
-                      <span className={`font-semibold ${theme === "green" ? "text-emerald-700" : "text-orange-600"}`}>{persianFontSize} پیکسل</span>
+                      <span className={`font-semibold ${theme === "green" ? "text-emerald-700" : "text-orange-600"}`}>{toPersianDigits(persianFontSize)} پیکسل</span>
                     </div>
                     <input
                       type="range"
@@ -1415,16 +1575,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="border-t pt-4 border-black/[0.05] dark:border-white/[0.05] flex flex-wrap justify-between items-center gap-3">
-                  <span className="text-xs text-slate-400">پیشرفت‌ها و تاریخچه مطالعه را می‌توانید بازنشانی کنید:</span>
-                  <button
-                    onClick={handleResetProgress}
-                    className="py-1.5 px-3 rounded-xl text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 transition-all flex items-center gap-1"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>پاک کردن پیشرفت‌ها</span>
-                  </button>
-                </div>
+
 
                 <div className="pt-3 border-t border-black/[0.05] dark:border-white/[0.05] flex justify-end">
                   <button
@@ -1589,7 +1740,7 @@ export default function App() {
                 {pill.label}
                 {pill.id === "bookmarked" && bookmarkedBands.length > 0 && (
                   <span className="mr-1 px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-mono">
-                    {bookmarkedBands.length}
+                    {toPersianDigits(bookmarkedBands.length)}
                   </span>
                 )}
               </button>
@@ -1636,9 +1787,9 @@ export default function App() {
                       <span className={`w-8 h-8 rounded-full text-xs font-bold flex items-center justify-center ${
                         theme === "green" ? "bg-emerald-500/10 text-emerald-600" : "bg-orange-500/10 text-orange-600 dark:text-orange-400"
                       }`}>
-                        {band.id}
+                        {toPersianDigits(band.id)}
                       </span>
-                      <h4 className="font-bold text-sm tracking-tight">بند {band.id}</h4>
+                      <h4 className="font-bold text-sm tracking-tight">بند {toPersianDigits(band.id)}</h4>
                     </div>
 
                     <div className="flex items-center gap-1.5">
@@ -1821,7 +1972,7 @@ export default function App() {
                             : "bg-orange-600 hover:bg-orange-500 shadow-orange-500/10"
                         }`}
                       >
-                        {tasbihCount} مرتبه
+                        {toPersianDigits(tasbihCount)} مرتبه
                       </button>
                       {tasbihCount > 0 && (
                         <button
@@ -1864,8 +2015,8 @@ export default function App() {
           <div ref={focusContainerRef} className="space-y-4">
             <div className="flex items-center justify-between text-xs px-2">
               <span className="text-slate-400">
-                بند <span className={`font-bold ${theme === "green" ? "text-emerald-600" : "text-orange-500"}`}>{currentFocusIndex + 1}</span> از{" "}
-                <span className="font-semibold">{filteredBands.length}</span> (فیلتر شده)
+                بند <span className={`font-bold ${theme === "green" ? "text-emerald-600" : "text-orange-500"}`}>{toPersianDigits(currentFocusIndex + 1)}</span> از{" "}
+                <span className="font-semibold">{toPersianDigits(filteredBands.length)}</span> (فیلتر شده)
               </span>
               <span className="text-slate-400">حالت مطالعه تمرکزی</span>
             </div>
@@ -1909,10 +2060,10 @@ export default function App() {
                       <span className={`w-10 h-10 rounded-full text-white text-sm font-bold flex items-center justify-center shadow-md ${
                         theme === "green" ? "bg-emerald-600 shadow-emerald-500/10" : "bg-orange-500 shadow-orange-500/10"
                       }`}>
-                        {filteredBands[currentFocusIndex]?.id}
+                        {toPersianDigits(filteredBands[currentFocusIndex]?.id)}
                       </span>
                       <div>
-                        <h4 className="font-bold text-base tracking-tight">بند {filteredBands[currentFocusIndex]?.id}</h4>
+                        <h4 className="font-bold text-base tracking-tight">بند {toPersianDigits(filteredBands[currentFocusIndex]?.id)}</h4>
                         <p className="text-[10px] text-slate-400">استغفار حضرت امیرالمؤمنین (ع)</p>
                       </div>
                     </div>
@@ -2105,7 +2256,7 @@ export default function App() {
                             : "bg-orange-600 hover:bg-orange-500 shadow-orange-500/10"
                         }`}
                       >
-                        {tasbihCounts[filteredBands[currentFocusIndex]?.id] || 0} مرتبه قرائت
+                        {toPersianDigits(tasbihCounts[filteredBands[currentFocusIndex]?.id] || 0)} مرتبه قرائت
                       </button>
                       {(tasbihCounts[filteredBands[currentFocusIndex]?.id] || 0) > 0 && (
                         <button
@@ -2159,7 +2310,7 @@ export default function App() {
               </button>
 
               <span className="text-xs font-bold font-mono">
-                {currentFocusIndex + 1} / {filteredBands.length}
+                {toPersianDigits(currentFocusIndex + 1)} / {toPersianDigits(filteredBands.length)}
               </span>
 
               <button
@@ -2191,11 +2342,8 @@ export default function App() {
           }`}
         >
           <div className="flex items-center gap-2 mb-4 border-b pb-3 border-black/[0.05] dark:border-white/[0.05]">
-            <div className={`p-2 rounded-xl text-white ${theme === "green" ? "bg-emerald-600" : "bg-orange-500"}`}>
-              <Sparkles className="w-4 h-4 animate-pulse" />
-            </div>
             <div>
-              <h3 className="font-bold text-sm">دعای پایانی استغفار ۷۰ بندی</h3>
+              <h3 className="font-bold text-sm">دعای پایانی</h3>
               <p className="text-[10px] text-slate-400">پس از اتمام قرائت ۷۰ بند این بخش را تلاوت کنید</p>
             </div>
           </div>
